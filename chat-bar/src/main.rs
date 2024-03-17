@@ -10,6 +10,8 @@ use p2p::evt_loop;
 mod msg;
 use msg::*;
 
+const TITLE: &str = include_str!("./title.txt");
+
 fn global_rt() -> &'static tokio::runtime::Runtime {
     static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
     RT.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
@@ -22,8 +24,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     let mut tui_app = ui::App::default();
-    // welcome
-    tui_app.add_message(r#"Welcome to Chat BAR. (BAR means "Burning After Reading")"#.to_string());
+    for line in TITLE.lines() {
+        tui_app.add_message(line.to_string());
+    }
 
     let (peer_tx, mut peer_rx) = tokio::sync::mpsc::channel::<Msg>(100);
     let (input_tx, input_rx) = tokio::sync::mpsc::channel::<Msg>(100);
