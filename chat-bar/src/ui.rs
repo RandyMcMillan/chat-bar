@@ -13,7 +13,6 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::{
-    collections::VecDeque,
     error::Error,
     io,
     sync::{Arc, Mutex},
@@ -21,6 +20,8 @@ use std::{
 };
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
+
+use crate::msg;
 
 #[derive(Default)]
 enum InputMode {
@@ -137,7 +138,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                 InputMode::Editing => match key.code {
                     KeyCode::Enter => {
                         if !app.input.value().trim().is_empty() {
-                            app.add_message(format!("Me: {}", app.input.value()));
+                            app.add_message(msg::Msg::new_self_chat(app.input.value().to_owned()).to_string());
                             if let Some(ref mut hook) = app._on_input_enter {
                                 hook(app.input.value().into());
                             }

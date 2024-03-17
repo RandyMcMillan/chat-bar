@@ -3,7 +3,7 @@ use std::fmt::Display;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-static HOSTNAME: Lazy<String> =
+pub(crate) static HOSTNAME: Lazy<String> =
     Lazy::new(|| hostname::get().unwrap().to_string_lossy().to_string());
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -41,6 +41,14 @@ impl Msg {
     pub fn set_content(mut self, content: String) -> Self {
         self.content = content;
         self
+    }
+
+    pub fn new_self_chat(content: String) -> Self {
+        Self {
+            from: format!("{} (You)", HOSTNAME.clone()),
+            content,
+            kind: MsgKind::Chat,
+        }
     }
 }
 

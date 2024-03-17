@@ -1,5 +1,5 @@
-use once_cell::sync::{Lazy, OnceCell};
-use std::{error::Error, fmt::Display, time::Duration};
+use once_cell::sync::OnceCell;
+use std::{error::Error, time::Duration};
 use tokio::{io, io::AsyncBufReadExt};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
