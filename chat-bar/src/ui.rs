@@ -56,7 +56,7 @@ impl Default for App {
 }
 
 impl App {
-    pub fn on_input_enter<F: FnMut(msg::Msg) + 'static>(&mut self, hook: F) {
+    pub fn on_submit<F: FnMut(msg::Msg) + 'static>(&mut self, hook: F) {
         self._on_input_enter = Some(Box::new(hook));
     }
 
@@ -69,7 +69,7 @@ impl App {
         msgs.push(msg);
     }
 
-    pub fn get_messages_adder(&self) -> Box<dyn FnMut(msg::Msg) + 'static + Send> {
+    pub fn add_msg_fn(&self) -> Box<dyn FnMut(msg::Msg) + 'static + Send> {
         let m = self.messages.clone();
         Box::new(move |msg| {
             let mut msgs = m.lock().unwrap();

@@ -1,7 +1,7 @@
 use once_cell::sync::OnceCell;
 use std::{error::Error, time::Duration};
 use tokio::{io, io::AsyncBufReadExt};
-use tracing::info;
+use tracing::debug;
 use tracing_subscriber::EnvFilter;
 
 mod p2p;
@@ -23,9 +23,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_writer(std::io::stderr)
         .init();
 
-    let mut tui_app = ui::App::default();
+    let mut app = ui::App::default();
     for line in TITLE.lines() {
-        tui_app.add_message(
+        app.add_message(
             Msg::default()
                 .set_content(line.to_string())
                 .set_kind(MsgKind::Raw),
@@ -37,22 +37,22 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // let input_loop_fut = input_loop(input_tx);
     let input_tx_clone = input_tx.clone();
-    tui_app.on_input_enter(move |m| {
-        info!("sent: {:?}", m);
+    app.on_submit(move |m| {
+        debug!("sent: {:?}", m);
         input_tx_clone.blocking_send(m).unwrap();
-    });
-
-    // recv from peer
-    let mut tui_msg_adder = tui_app.get_messages_adder();
-    global_rt().spawn(async move {
-        while let Some(m) = peer_rx.recv().await {
-            info!("recv: {:?}", m);
-            tui_msg_adder(m);
-        }
     });
 
     global_rt().spawn(async move {
         evt_loop(input_rx, peer_tx).await.unwrap();
+    });
+
+    // recv from peer
+    let mut tui_msg_adder = app.add_msg_fn();
+    global_rt().spawn(async move {
+        while let Some(m) = peer_rx.recv().await {
+            debug!("recv: {:?}", m);
+            tui_msg_adder(m);
+        }
     });
 
     // say hi
@@ -65,7 +65,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap();
     });
 
-    tui_app.run()?;
+    app.run()?;
 
     // say goodbye
     input_tx.blocking_send(Msg::default().set_kind(MsgKind::Leave))?;
