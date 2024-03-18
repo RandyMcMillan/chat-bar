@@ -25,7 +25,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut tui_app = ui::App::default();
     for line in TITLE.lines() {
-        tui_app.add_message(line.to_string());
+        tui_app.add_message(
+            Msg::default()
+                .set_content(line.to_string())
+                .set_kind(MsgKind::Raw),
+        );
     }
 
     let (peer_tx, mut peer_rx) = tokio::sync::mpsc::channel::<Msg>(100);
@@ -33,8 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // let input_loop_fut = input_loop(input_tx);
     let input_tx_clone = input_tx.clone();
-    tui_app.on_input_enter(move |s| {
-        let m = Msg::default().set_content(s);
+    tui_app.on_input_enter(move |m| {
         info!("sent: {:?}", m);
         input_tx_clone.blocking_send(m).unwrap();
     });
@@ -44,7 +47,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     global_rt().spawn(async move {
         while let Some(m) = peer_rx.recv().await {
             info!("recv: {:?}", m);
-            tui_msg_adder(m.to_string());
+            tui_msg_adder(m);
         }
     });
 

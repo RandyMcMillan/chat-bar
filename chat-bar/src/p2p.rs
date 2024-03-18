@@ -1,9 +1,9 @@
 use futures::stream::StreamExt;
 use libp2p::{gossipsub, mdns, noise, swarm::NetworkBehaviour, swarm::SwarmEvent, tcp, yamux};
-use std::{error::Error, collections::BTreeSet};
+use std::error::Error;
 use std::time::Duration;
 use tokio::{io, select};
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 
 use crate::msg::{Msg, MsgKind};
 
@@ -82,25 +82,19 @@ pub async fn evt_loop(
             }
             event = swarm.select_next_some() => match event {
                 SwarmEvent::Behaviour(MyBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
-                    let mut seen = BTreeSet::new();
                     for (peer_id, _multiaddr) in list {
-                        if seen.insert(peer_id.clone()) {
-                            debug!("mDNS discovered a new peer: {peer_id}");
-                            swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-                            let m = Msg::default().set_content(format!("discovered new peer: {peer_id}")).set_kind(MsgKind::System);
-                            recv.send(m).await?;
-                        }
+                        debug!("mDNS discovered a new peer: {peer_id}");
+                        swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                        // let m = Msg::default().set_content(format!("discovered new peer: {peer_id}")).set_kind(MsgKind::System);
+                        // recv.send(m).await?;
                     }
                 },
                 SwarmEvent::Behaviour(MyBehaviourEvent::Mdns(mdns::Event::Expired(list))) => {
-                    let mut seen = BTreeSet::new();
                     for (peer_id, _multiaddr) in list {
-                        if seen.insert(peer_id.clone()) {
-                            debug!("mDNS discover peer has expired: {peer_id}");
-                            swarm.behaviour_mut().gossipsub.remove_explicit_peer(&peer_id);
-                            let m = Msg::default().set_content(format!("peer expired: {peer_id}")).set_kind(MsgKind::System);
-                            recv.send(m).await?;
-                        }
+                        debug!("mDNS discover peer has expired: {peer_id}");
+                        swarm.behaviour_mut().gossipsub.remove_explicit_peer(&peer_id);
+                        // let m = Msg::default().set_content(format!("peer expired: {peer_id}")).set_kind(MsgKind::System);
+                        // recv.send(m).await?;
                     }
                 },
                 SwarmEvent::Behaviour(MyBehaviourEvent::Gossipsub(gossipsub::Event::Message {
@@ -117,7 +111,9 @@ pub async fn evt_loop(
                             recv.send(msg).await?;
                         },
                         Err(e) => {
-                            error!("Error deserializing message: {e:?}");
+                            warn!("Error deserializing message: {e:?}");
+                            let m = Msg::default().set_content(format!("Error deserializing message: {e:?}")).set_kind(MsgKind::System);
+                            recv.send(m).await?;
                         }
                     }
                 },

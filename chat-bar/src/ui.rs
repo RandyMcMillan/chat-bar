@@ -4,11 +4,12 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use ratatui::style::Style;
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
+    style::Color,
+    text::Line,
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
@@ -37,8 +38,8 @@ pub struct App {
     /// Current input mode
     input_mode: InputMode,
     /// History of recorded messages
-    messages: Arc<Mutex<Vec<String>>>,
-    _on_input_enter: Option<Box<dyn FnMut(String)>>,
+    messages: Arc<Mutex<Vec<msg::Msg>>>,
+    _on_input_enter: Option<Box<dyn FnMut(msg::Msg)>>,
     msgs_scroll: usize,
 }
 
@@ -55,20 +56,20 @@ impl Default for App {
 }
 
 impl App {
-    pub fn on_input_enter<F: FnMut(String) + 'static>(&mut self, hook: F) {
+    pub fn on_input_enter<F: FnMut(msg::Msg) + 'static>(&mut self, hook: F) {
         self._on_input_enter = Some(Box::new(hook));
     }
 
-    pub fn add_message(&self, msg: String) {
+    pub fn add_message(&self, msg: msg::Msg) {
         let mut msgs = self.messages.lock().unwrap();
         Self::add_msg(&mut msgs, msg);
     }
 
-    fn add_msg(msgs: &mut Vec<String>, msg: String) {
+    fn add_msg(msgs: &mut Vec<msg::Msg>, msg: msg::Msg) {
         msgs.push(msg);
     }
 
-    pub fn get_messages_adder(&self) -> Box<dyn FnMut(String) + 'static + Send> {
+    pub fn get_messages_adder(&self) -> Box<dyn FnMut(msg::Msg) + 'static + Send> {
         let m = self.messages.clone();
         Box::new(move |msg| {
             let mut msgs = m.lock().unwrap();
@@ -138,9 +139,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                 InputMode::Editing => match key.code {
                     KeyCode::Enter => {
                         if !app.input.value().trim().is_empty() {
-                            app.add_message(msg::Msg::new_self_chat(app.input.value().to_owned()).to_string());
+                            let m = msg::Msg::new_self_chat(app.input.value().to_owned());
+                            app.add_message(m.clone());
                             if let Some(ref mut hook) = app._on_input_enter {
-                                hook(app.input.value().into());
+                                hook(m);
                             }
                         }
                         app.input.reset();
@@ -197,10 +199,7 @@ fn ui(f: &mut Frame, app: &App) {
     let messages: Vec<ListItem> = msgs[0..app.msgs_scroll.min(msgs.len())]
         .iter()
         .rev()
-        .map(|m| {
-            let content = vec![Line::from(Span::raw(format!("{}", m)))];
-            ListItem::new(content)
-        })
+        .map(|m| ListItem::new(Line::from(m)))
         .take(height as usize)
         .collect();
     let messages = List::new(messages)
