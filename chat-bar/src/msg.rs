@@ -43,14 +43,6 @@ impl Msg {
         self.content = content;
         self
     }
-
-    pub fn new_self_chat(content: String) -> Self {
-        Self {
-            from: format!("{} (You)", HOSTNAME.clone()),
-            content,
-            kind: MsgKind::Chat,
-        }
-    }
 }
 
 impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
@@ -60,13 +52,13 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
         use MsgKind::*;
 
         fn gen_color_by_hash(s: &str) -> Color {
-            static LIGHT_COLORS: [Color; 6] = [
+            static LIGHT_COLORS: [Color; 5] = [
+                Color::LightMagenta,
                 Color::LightGreen,
                 Color::LightYellow,
                 Color::LightBlue,
-                Color::LightMagenta,
                 Color::LightCyan,
-                Color::White,
+                // Color::White,
             ];
             use std::collections::hash_map::DefaultHasher;
             use std::hash::{Hash, Hasher};
@@ -98,9 +90,19 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
 impl Display for Msg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.kind {
-            MsgKind::Join => write!(f, "{} joined", self.from),
+            MsgKind::Join => write!(f, "{} join", self.from),
             MsgKind::Leave => write!(f, "{} left", self.from),
-            MsgKind::Chat => write!(f, "{}: {}", self.from, self.content),
+            MsgKind::Chat => write!(
+                f,
+                "{}{}: {}",
+                self.from,
+                if self.from.eq(&*HOSTNAME) {
+                    " (You)"
+                } else {
+                    ""
+                },
+                self.content
+            ),
             MsgKind::System => write!(f, "[System] {}", self.content),
             MsgKind::Raw => write!(f, "{}", self.content),
         }

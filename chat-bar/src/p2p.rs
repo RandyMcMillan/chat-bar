@@ -76,8 +76,8 @@ pub async fn evt_loop(
                     .behaviour_mut().gossipsub
                     .publish(topic.clone(), serde_json::to_vec(&m)?) {
                     warn!("Publish error: {e:?}");
-                    // let m = Msg::default().set_content(format!("publish error: {e:?}")).set_kind(MsgKind::System);
-                    // recv.send(m).await?;
+                    let m = Msg::default().set_content(format!("publish error: {e:?}")).set_kind(MsgKind::System);
+                    recv.send(m).await?;
                 }
             }
             event = swarm.select_next_some() => match event {
