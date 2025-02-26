@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    if let Some(log_level) = args().nth(1) {
+    if let Some(log_level) = args().nth(2) {
         Builder::from_env(
             Env::default().default_filter_or(log_level + ",libp2p_gossipsub::behaviour=error"),
         )
@@ -72,9 +72,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         commit.message().unwrap_or("No message")
     );
 
+    let mut topic = gossipsub::IdentTopic::new("");
     //TODO add cli topic arg
     //commit.id is padded to fit sha256/nostr privkey context
-    let topic = gossipsub::IdentTopic::new(format!("{:0>64}", commit.id()));
+    if let Some(topic_arg) = args().nth(1) {
+        topic = gossipsub::IdentTopic::new(format!("{:0>64}", topic_arg));
+    } else {
+        topic = gossipsub::IdentTopic::new(format!("{:0>64}", commit.id()));
+    }
     debug!("TOPIC> {:0>64}", topic);
 
     let mut app = ui::App::default();
