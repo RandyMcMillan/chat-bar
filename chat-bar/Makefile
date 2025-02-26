@@ -7,3 +7,7 @@ run:
 build:
 	@echo "Building chat-bar"
 	cargo build --release
+
+install:
+	@echo "Installing chat-bar"
+	cargo install --path .
