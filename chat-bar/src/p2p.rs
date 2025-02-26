@@ -1,8 +1,9 @@
 use futures::stream::StreamExt;
+use git2::Repository;
 use libp2p::{gossipsub, mdns, noise, swarm::NetworkBehaviour, swarm::SwarmEvent, tcp, yamux};
 use std::error::Error;
 use std::time::Duration;
-use tokio::{io, select};
+use tokio::{io, select, task};
 use tracing::{debug, warn};
 
 use crate::msg::{Msg, MsgKind};
@@ -14,6 +15,15 @@ const TOPIC: &str = "chat-bar";
 struct MyBehaviour {
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::tokio::Behaviour,
+}
+
+async fn fetch_data_async(url: String) -> Result<ureq::Response, ureq::Error> {
+    task::spawn_blocking(move || {
+        let response = ureq::get(&url).call();
+        response
+    })
+    .await
+    .unwrap() // Handle potential join errors
 }
 
 pub async fn evt_loop(
