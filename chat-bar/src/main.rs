@@ -131,8 +131,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     //debug!("commit_summary:\n\n{}\n\n", commit_summary);
 
     let mut topic = String::from(format!("{:0>64}", 0));
+
     if let Some(topic_arg) = args().nth(1) {
-        topic = String::from(format!("{}", topic_arg));
+        app.add_message(
+            Msg::default()
+                .set_content(String::from("-------"))
+                .set_kind(MsgKind::Raw),
+        );
+
+        topic = String::from(format!("\n\n{}", topic_arg));
 
         app.add_message(
             Msg::default()
@@ -142,6 +149,26 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         debug!("{}", topic.clone());
     } else {
+        app.add_message(
+            Msg::default()
+                .set_content(String::from("-------"))
+                .set_kind(MsgKind::Raw),
+        );
+
+        //push commit body
+        for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+            app.add_message(
+                Msg::default()
+                    .set_content(line.to_string())
+                    .set_kind(MsgKind::Raw),
+            );
+        }
+        app.add_message(
+            Msg::default()
+                .set_content(String::from("-------"))
+                .set_kind(MsgKind::Raw),
+        );
+
         //commit.id is padded to fit sha256/nostr privkey context
         topic = String::from(format!("TOPIC> {} {}", commit.id(), commit_summary));
 
@@ -154,13 +181,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         debug!("{}", topic);
     }
 
-    //for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-    //    app.add_message(
-    //        Msg::default()
-    //            .set_content(line.to_string())
-    //            .set_kind(MsgKind::Raw),
-    //    );
-    //}
     //for line in TITLE.lines() {
     //    app.add_message(
     //        Msg::default()
