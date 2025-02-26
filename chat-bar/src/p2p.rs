@@ -1,3 +1,4 @@
+use crate::msg::{Msg, MsgKind};
 use futures::stream::StreamExt;
 use git2::Repository;
 use libp2p::{gossipsub, mdns, noise, swarm::NetworkBehaviour, swarm::SwarmEvent, tcp, yamux};
@@ -6,7 +7,6 @@ use std::time::Duration;
 use tokio::{io, select, task};
 use tracing::{debug, warn};
 use ureq::Agent;
-use crate::msg::{Msg, MsgKind};
 
 const TOPIC: &str = "chat-bar";
 
@@ -18,7 +18,6 @@ struct MyBehaviour {
 }
 
 async fn async_prompt(mempool_url: String) -> String {
-
     let s = tokio::spawn(async move {
         let agent: Agent = ureq::AgentBuilder::new()
             .timeout_read(Duration::from_secs(10))
@@ -34,7 +33,7 @@ async fn async_prompt(mempool_url: String) -> String {
         body
     });
 
-        s.await.unwrap()
+    s.await.unwrap()
 }
 
 async fn fetch_data_async(url: String) -> Result<ureq::Response, ureq::Error> {

@@ -1,7 +1,11 @@
+use env_logger::{Builder, Env};
 use once_cell::sync::OnceCell;
+use std::env;
+use std::env::args;
 use std::{error::Error, time::Duration};
+
 use tokio::{io, io::AsyncBufReadExt};
-use tracing::debug;
+use tracing::{debug, trace};
 use tracing_subscriber::EnvFilter;
 
 mod p2p;
@@ -18,10 +22,32 @@ fn global_rt() -> &'static tokio::runtime::Runtime {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_writer(std::io::stderr)
+    //tracing_subscriber::fmt()
+    //    .with_env_filter(EnvFilter::from_default_env())
+    //    .with_writer(std::io::stderr)
+    //    .init();
+
+    let args_vec: Vec<String> = env::args().collect();
+    trace!("Arguments:");
+    for (index, arg) in args_vec.iter().enumerate() {
+        if Some(index) == Some(0) {
+            trace!("Some(index) = Some(0):  {}: {}", index, arg);
+        } else {
+            trace!("  {}: {}", index, arg);
+        }
+    }
+
+    if let Some(log_level) = args().nth(1) {
+        Builder::from_env(
+            Env::default().default_filter_or(log_level + ",libp2p_gossipsub::behaviour=error"),
+        )
         .init();
+    } else {
+        Builder::from_env(
+            Env::default().default_filter_or("none,libp2p_gossipsub::behaviour=error"),
+        )
+        .init();
+    }
 
     let mut app = ui::App::default();
     for line in TITLE.lines() {

@@ -1,21 +1,17 @@
 /// This example is taken from https://raw.githubusercontent.com/fdehau/tui-rs/master/examples/user_input.rs
 //use crate::ui::event::Event;
-
 use ratatui::prelude::*;
 use ratatui::{
+    backend::{Backend, CrosstermBackend},
     crossterm::{
         event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
         execute,
-        terminal::{
-            disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
-            LeaveAlternateScreen,
-        },
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-    backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::Color,
     text::Line,
+    widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
 
@@ -130,7 +126,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                         app.input_mode = InputMode::Editing;
                         app.msgs_scroll = usize::MAX;
                     }
-                    KeyCode::Char('q') => {
+                    KeyCode::Char('q') | KeyCode::Esc => {
                         return Ok(());
                     }
                     KeyCode::Up => {
