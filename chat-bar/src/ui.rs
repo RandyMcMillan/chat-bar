@@ -1,18 +1,25 @@
 /// This example is taken from https://raw.githubusercontent.com/fdehau/tui-rs/master/examples/user_input.rs
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use ratatui::style::Style;
+//use crate::ui::event::Event;
+
+use ratatui::prelude::*;
 use ratatui::{
+    crossterm::{
+        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+        execute,
+        terminal::{
+            disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
+            LeaveAlternateScreen,
+        },
+    },
+    widgets::{Block, Borders, List, ListItem, Paragraph},
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::Color,
     text::Line,
-    widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
+
+use ratatui::style::Style;
 use std::{
     error::Error,
     io,
