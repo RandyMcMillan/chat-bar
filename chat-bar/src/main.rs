@@ -69,7 +69,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     global_rt().spawn(async move {
-        evt_loop(input_rx, peer_tx).await.unwrap();
+        evt_loop(input_rx, peer_tx, String::from("topic"))
+            .await
+            .unwrap();
     });
 
     // recv from peer
