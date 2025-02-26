@@ -1,5 +1,7 @@
 use env_logger::{Builder, Env};
 use git2::Repository;
+use git2::Commit;
+use git2::Time;
 use libp2p::gossipsub;
 use once_cell::sync::OnceCell;
 use std::env;
@@ -20,6 +22,54 @@ const TITLE: &str = include_str!("./title.txt");
 fn global_rt() -> &'static tokio::runtime::Runtime {
     static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
     RT.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
+}
+
+//this formats and prints the commit header/message
+fn print_commit_header(commit: &Commit) {
+    println!("commit {}", commit.id());
+
+    if commit.parents().len() > 1 {
+        print!("Merge:");
+        for id in commit.parent_ids() {
+            print!(" {:.8}", id);
+        }
+        println!();
+    }
+
+    let author = commit.author();
+    println!("Author: {}", author);
+    print_time(&author.when(), "Date:   ");
+    println!();
+
+    for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+        println!("    {}", line);
+    }
+    println!();
+}
+
+//called from above
+//part of formatting the output
+fn print_time(time: &Time, prefix: &str) {
+    let (offset, sign) = match time.offset_minutes() {
+        n if n < 0 => (-n, '-'),
+        n => (n, '+'),
+    };
+    let (hours, minutes) = (offset / 60, offset % 60);
+    let ts = time::Timespec::new(time.seconds() + (time.offset_minutes() as i64) * 60, 0);
+    let time = time::at(ts);
+
+    println!(
+        "{}{} {}{:02}{:02}",
+        prefix,
+        time.strftime("%a %b %e %T %Y").unwrap(),
+        sign,
+        hours,
+        minutes
+    );
+}
+
+fn collect_chars_to_string(chars: &[char]) -> String {
+    chars.iter().collect()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -83,22 +133,33 @@ fn main() -> Result<(), Box<dyn Error>> {
     debug!("TOPIC> {:0>64}", topic);
 
     let mut app = ui::App::default();
-    while let Some(line) = commit.message() {
-        //for line in commit.message() {
-        app.add_message(
-            Msg::default()
-                .set_content(line.to_string())
-                .set_kind(MsgKind::Raw),
-        );
-    }
+	let mut commit_summary: String;
+    //let mut char_vec = vec!['H', 'e', 'l', 'l', 'o'];
+	let mut char_vec: Vec<char> = Vec::new();
+	for line in commit.summary().unwrap_or("HEAD").chars() {
+		char_vec.push(line);
+	}
+    let commit_summary = collect_chars_to_string(&char_vec);
+    //debug!("commit_summary:\n\n{}\n\n", commit_summary);
+    app.add_message(
+        Msg::default()
+            .set_content(commit_summary)
+            .set_kind(MsgKind::Raw),
+    );
+    //for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+    //    app.add_message(
+    //        Msg::default()
+    //            .set_content(line.to_string())
+    //            .set_kind(MsgKind::Raw),
+    //    );
     //}
-    for line in TITLE.lines() {
-        app.add_message(
-            Msg::default()
-                .set_content(line.to_string())
-                .set_kind(MsgKind::Raw),
-        );
-    }
+    //for line in TITLE.lines() {
+    //    app.add_message(
+    //        Msg::default()
+    //            .set_content(line.to_string())
+    //            .set_kind(MsgKind::Raw),
+    //    );
+    //}
     let (peer_tx, mut peer_rx) = tokio::sync::mpsc::channel::<Msg>(100);
     let (input_tx, input_rx) = tokio::sync::mpsc::channel::<Msg>(100);
 
