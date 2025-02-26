@@ -48,7 +48,7 @@ async fn fetch_data_async(url: String) -> Result<ureq::Response, ureq::Error> {
 pub async fn evt_loop(
     mut send: tokio::sync::mpsc::Receiver<Msg>,
     recv: tokio::sync::mpsc::Sender<Msg>,
-    mut loop_topic: String,
+    topic: gossipsub::IdentTopic,
 ) -> Result<(), Box<dyn Error>> {
     let mut swarm = libp2p::SwarmBuilder::with_new_identity()
         .with_tokio()
@@ -87,8 +87,6 @@ pub async fn evt_loop(
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
         .build();
 
-    // Create a Gossipsub topic
-    let topic = gossipsub::IdentTopic::new(loop_topic);
     // subscribes to our topic
     swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
 

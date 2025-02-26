@@ -1,4 +1,6 @@
 use env_logger::{Builder, Env};
+use git2::Repository;
+use libp2p::gossipsub;
 use once_cell::sync::OnceCell;
 use std::env;
 use std::env::args;
@@ -6,7 +8,6 @@ use std::{error::Error, time::Duration};
 
 use tokio::{io, io::AsyncBufReadExt};
 use tracing::{debug, trace};
-use tracing_subscriber::EnvFilter;
 
 mod p2p;
 mod ui;
@@ -49,6 +50,33 @@ fn main() -> Result<(), Box<dyn Error>> {
         .init();
     }
 
+    // Create a Gossipsub topic
+    // Open the Git repository
+    let repo = Repository::discover(".")?; // Opens the repository in the current directory
+
+    // Get the reference to HEAD
+    let head = repo.head()?;
+
+    // Print the name of HEAD (e.g., "refs/heads/main" or "HEAD")
+    debug!("HEAD: {}", head.name().unwrap_or("HEAD"));
+
+    // Get the commit object that HEAD points to
+    let commit = head.peel_to_commit()?;
+
+    // Print the commit ID (SHA-1 hash)
+    debug!("Commit ID: {}", commit.id());
+
+    // Optionally, print other commit information
+    debug!(
+        "Commit message: {}",
+        commit.message().unwrap_or("No message")
+    );
+
+    //TODO add cli topic arg
+    //commit.id is padded to fit sha256/nostr privkey context
+    let topic = gossipsub::IdentTopic::new(format!("{:0>64}", commit.id()));
+    debug!("TOPIC> {:0>64}", topic);
+
     let mut app = ui::App::default();
     for line in TITLE.lines() {
         app.add_message(
@@ -69,9 +97,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     global_rt().spawn(async move {
-        evt_loop(input_rx, peer_tx, String::from("topic"))
-            .await
-            .unwrap();
+        evt_loop(input_rx, peer_tx, topic).await.unwrap();
     });
 
     // recv from peer
