@@ -123,18 +123,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let mut topic = gossipsub::IdentTopic::new("");
+
+
+
+
     //TODO add cli topic arg
     //commit.id is padded to fit sha256/nostr privkey context
     if let Some(topic_arg) = args().nth(1) {
-        topic = gossipsub::IdentTopic::new(format!("{:0>64}", topic_arg));
+        topic = gossipsub::IdentTopic::new(format!("{}", topic_arg));
     } else {
         topic = gossipsub::IdentTopic::new(format!("{:0>64}", commit.id()));
     }
-    debug!("TOPIC> {:0>64}", topic);
+    print!("TOPIC> {:0>64}", topic);
 
     let mut app = ui::App::default();
-	let mut commit_summary: String;
-    //let mut char_vec = vec!['H', 'e', 'l', 'l', 'o'];
 	let mut char_vec: Vec<char> = Vec::new();
 	for line in commit.summary().unwrap_or("HEAD").chars() {
 		char_vec.push(line);
