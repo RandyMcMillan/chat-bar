@@ -83,6 +83,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     debug!("TOPIC> {:0>64}", topic);
 
     let mut app = ui::App::default();
+    while let Some(line) = commit.message() {
+        //for line in commit.message() {
+        app.add_message(
+            Msg::default()
+                .set_content(line.to_string())
+                .set_kind(MsgKind::Raw),
+        );
+    }
+    //}
     for line in TITLE.lines() {
         app.add_message(
             Msg::default()
@@ -90,7 +99,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .set_kind(MsgKind::Raw),
         );
     }
-
     let (peer_tx, mut peer_rx) = tokio::sync::mpsc::channel::<Msg>(100);
     let (input_tx, input_rx) = tokio::sync::mpsc::channel::<Msg>(100);
 
