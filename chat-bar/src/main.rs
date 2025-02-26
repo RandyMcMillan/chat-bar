@@ -130,28 +130,28 @@ fn main() -> Result<(), Box<dyn Error>> {
     let commit_summary = collect_chars_to_string(&char_vec);
     //debug!("commit_summary:\n\n{}\n\n", commit_summary);
 
-    let mut topic = gossipsub::IdentTopic::new(format!("{:0>64}", 0));
-    //commit.id is padded to fit sha256/nostr privkey context
+    let mut topic = String::from(format!("{:0>64}", 0));
     if let Some(topic_arg) = args().nth(1) {
-        topic = gossipsub::IdentTopic::new(format!("{}", topic_arg));
+        topic = String::from(format!("{}", topic_arg));
 
         app.add_message(
             Msg::default()
-                .set_content(commit_summary)
+                .set_content(topic.clone())
                 .set_kind(MsgKind::Raw),
         );
 
-        debug!("TOPIC> {:0>64}", topic);
+        debug!("{}", topic.clone());
     } else {
-        topic = gossipsub::IdentTopic::new(format!("{:0>64}", commit.id()));
+        //commit.id is padded to fit sha256/nostr privkey context
+        topic = String::from(format!("TOPIC> {} {}", commit.id(), commit_summary));
 
         app.add_message(
             Msg::default()
-                .set_content(commit_summary)
+                .set_content(topic.clone())
                 .set_kind(MsgKind::Raw),
         );
 
-        debug!("TOPIC> {:0>64}", topic);
+        debug!("{}", topic);
     }
 
     //for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
@@ -178,6 +178,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         input_tx_clone.blocking_send(m).unwrap();
     });
 
+    let topic = gossipsub::IdentTopic::new(format!("{}", topic));
     global_rt().spawn(async move {
         evt_loop(input_rx, peer_tx, topic).await.unwrap();
     });
