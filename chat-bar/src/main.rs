@@ -1,6 +1,6 @@
 use env_logger::{Builder, Env};
-use git2::Repository;
 use git2::Commit;
+use git2::Repository;
 use git2::Time;
 use libp2p::gossipsub;
 use once_cell::sync::OnceCell;
@@ -122,32 +122,38 @@ fn main() -> Result<(), Box<dyn Error>> {
         commit.message().unwrap_or("No message")
     );
 
-    let mut topic = gossipsub::IdentTopic::new("");
+    let mut app = ui::App::default();
+    let mut char_vec: Vec<char> = Vec::new();
+    for line in commit.summary().unwrap_or("HEAD").chars() {
+        char_vec.push(line);
+    }
+    let commit_summary = collect_chars_to_string(&char_vec);
+    //debug!("commit_summary:\n\n{}\n\n", commit_summary);
 
-
-
-
-    //TODO add cli topic arg
+    let mut topic = gossipsub::IdentTopic::new(format!("{:0>64}", 0));
     //commit.id is padded to fit sha256/nostr privkey context
     if let Some(topic_arg) = args().nth(1) {
         topic = gossipsub::IdentTopic::new(format!("{}", topic_arg));
+
+        app.add_message(
+            Msg::default()
+                .set_content(commit_summary)
+                .set_kind(MsgKind::Raw),
+        );
+
+        debug!("TOPIC> {:0>64}", topic);
     } else {
         topic = gossipsub::IdentTopic::new(format!("{:0>64}", commit.id()));
-    }
-    print!("TOPIC> {:0>64}", topic);
 
-    let mut app = ui::App::default();
-	let mut char_vec: Vec<char> = Vec::new();
-	for line in commit.summary().unwrap_or("HEAD").chars() {
-		char_vec.push(line);
-	}
-    let commit_summary = collect_chars_to_string(&char_vec);
-    //debug!("commit_summary:\n\n{}\n\n", commit_summary);
-    app.add_message(
-        Msg::default()
-            .set_content(commit_summary)
-            .set_kind(MsgKind::Raw),
-    );
+        app.add_message(
+            Msg::default()
+                .set_content(commit_summary)
+                .set_kind(MsgKind::Raw),
+        );
+
+        debug!("TOPIC> {:0>64}", topic);
+    }
+
     //for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
     //    app.add_message(
     //        Msg::default()
