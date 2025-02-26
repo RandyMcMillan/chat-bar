@@ -5,7 +5,7 @@ use std::error::Error;
 use std::time::Duration;
 use tokio::{io, select, task};
 use tracing::{debug, warn};
-
+use ureq::Agent;
 use crate::msg::{Msg, MsgKind};
 
 const TOPIC: &str = "chat-bar";
@@ -15,6 +15,26 @@ const TOPIC: &str = "chat-bar";
 struct MyBehaviour {
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::tokio::Behaviour,
+}
+
+async fn async_prompt(mempool_url: String) -> String {
+
+    let s = tokio::spawn(async move {
+        let agent: Agent = ureq::AgentBuilder::new()
+            .timeout_read(Duration::from_secs(10))
+            .timeout_write(Duration::from_secs(10))
+            .build();
+        let body: String = agent
+            .get(&mempool_url)
+            .call()
+            .expect("")
+            .into_string()
+            .expect("mempool_url:body:into_string:fail!");
+
+        body
+    });
+
+        s.await.unwrap()
 }
 
 async fn fetch_data_async(url: String) -> Result<ureq::Response, ureq::Error> {
