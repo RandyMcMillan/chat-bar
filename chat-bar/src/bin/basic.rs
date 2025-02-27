@@ -29,8 +29,10 @@ use ratatui::{
         execute,
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
+    layout::{Constraint, Direction, Layout},
+
     prelude::{
-        Backend, Buffer, Constraint, CrosstermBackend, Layout, Rect, StatefulWidget, Stylize,
+        Backend, Buffer, CrosstermBackend, Rect, StatefulWidget, Stylize,
         Terminal, Widget,
     },
     widgets::{Block, Paragraph},
@@ -448,7 +450,7 @@ impl App {
             }
         }
     }
-
+    pub fn test_function() -> () {}
     fn on_key_event(&mut self, key: event::KeyEvent) {
         if key.code == KeyCode::Char('c') && key.modifiers.contains(event::KeyModifiers::CONTROL) {
             let _ = restore_terminal();
@@ -468,7 +470,22 @@ impl App {
 }
 
 impl Widget for &mut App {
+
     fn render(self, area: Rect, buf: &mut Buffer) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        // .margin(2)
+        .constraints(
+            [
+                Constraint::Length(7), //0
+                Constraint::Fill(5),   //1
+                Constraint::Length(3), //2
+            ]
+            .as_ref(),
+        )
+        .split(area);
+
+
         use Constraint::*;
         let [top, main] = Layout::vertical([Length(1), Fill(1)]).areas(area);
 
