@@ -319,6 +319,7 @@ impl App {
 
             if event::poll(tick_rate)? {
                 if let Event::Key(key) = event::read()? {
+
                     self.on_key_event(key);
 
                     match self.input_mode {
@@ -444,19 +445,32 @@ impl App {
     pub fn test_function() -> () {}
 
     fn on_key_event(&mut self, key: event::KeyEvent) {
+
+		//if !self.input_mode {
         if key.code == KeyCode::Char('c') && key.modifiers.contains(event::KeyModifiers::CONTROL) {
             let _ = restore_terminal();
             std::process::exit(0);
         }
 
-        match key.code {
-            KeyCode::Char('h') | KeyCode::Left => self.menu.left(),
-            KeyCode::Char('l') | KeyCode::Right => self.menu.right(),
-            KeyCode::Char('j') | KeyCode::Down => self.menu.down(),
-            KeyCode::Char('k') | KeyCode::Up => self.menu.up(),
-            KeyCode::Esc => self.menu.reset(),
-            KeyCode::Enter => self.menu.select(),
-            _ => {}
+        match self.input_mode {
+
+            InputMode::Normal => match key.code {
+                KeyCode::Char('h') | KeyCode::Left => self.menu.left(),
+                KeyCode::Char('l') | KeyCode::Right => self.menu.right(),
+                KeyCode::Char('j') | KeyCode::Down => self.menu.down(),
+                KeyCode::Char('k') | KeyCode::Up => self.menu.up(),
+                KeyCode::Esc => self.menu.reset(),
+                KeyCode::Enter => self.menu.select(),
+                _ => {}
+            }
+			InputMode::Editing => match key.code {
+                _ => {}
+
+			}
+			InputMode::Command => match key.code {
+                _ => {}
+
+			}
         }
     }
 }
