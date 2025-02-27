@@ -475,8 +475,9 @@ impl Widget for &mut App {
             .constraints(
                 [
                     Constraint::Length(1), //0
-                    Constraint::Fill(1),   //1
-                    Constraint::Length(3), //2
+                    Constraint::Length(3), //1
+                    Constraint::Fill(1),   //2
+                    Constraint::Length(3), //3
                 ]
                 .as_ref(),
             )
@@ -497,13 +498,13 @@ impl Widget for &mut App {
 
         let height = chunks[1].height;
         let msgs = self.messages.lock().unwrap();
-        let messages: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
+        let messages_vec: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
             .iter()
             .rev()
             .map(|m| ListItem::new(Line::from(m)))
             .take(height as usize)
             .collect();
-        let messages = List::new(messages)
+        let messages = List::new(messages_vec)
             .direction(ratatui::widgets::ListDirection::BottomToTop)
             .block(Block::default().borders(Borders::NONE));
 	    	//.render(chunks[2], buf);
@@ -516,7 +517,7 @@ impl Widget for &mut App {
             })
             .scroll((0, scroll as u16))
             .block(Block::default().borders(Borders::ALL).title("Input2"))//;
-	    	.render(chunks[2], buf);
+	    	.render(chunks[3], buf);
 
 
 
