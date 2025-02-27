@@ -4,6 +4,10 @@ chat_bar:
 	@echo "Running chat_bar"
 	cargo run --bin chat_bar
 
+basic:
+	@echo "Running basic"
+	cargo run --bin basic
+
 nested_groups:
 	@echo "Running nested_groups"
 	cargo run --bin nested_groups
