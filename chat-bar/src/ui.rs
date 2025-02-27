@@ -8,10 +8,7 @@ use ratatui::{
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
     layout::{Constraint, Direction, Layout},
-    prelude::{
-            Buffer, Rect, StatefulWidget, Stylize,
-            Widget,
-        },
+    prelude::{Buffer, Rect, StatefulWidget, Stylize, Widget},
     style::Color,
     text::Line,
     widgets::{Block, Borders, List, ListItem, Paragraph},
@@ -21,9 +18,7 @@ use ratatui::{
 use ratatui::style::Style;
 use std::{
     error::Error,
-    io::{self,
-	stdout,
-	Stdout},
+    io::{self, stdout, Stdout},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -58,14 +53,14 @@ enum Action {
 
 /// App holds the state of the application
 pub struct App {
-	content: String,
+    content: String,
     /// Current value of the input box
     input: Input,
     /// Current input mode
     input_mode: InputMode,
     /// History of recorded messages
     messages: Arc<Mutex<Vec<msg::Msg>>>,
-	menu: MenuState<Action>,
+    menu: MenuState<Action>,
     _on_input_enter: Option<Box<dyn FnMut(msg::Msg)>>,
     msgs_scroll: usize,
 }
@@ -73,7 +68,7 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         App {
-			content: String::new(),
+            content: String::new(),
             input: Input::default(),
             input_mode: InputMode::default(),
             messages: Default::default(),
@@ -117,7 +112,7 @@ impl Default for App {
 }
 
 impl App {
-	//pub fn new(&self){}
+    //pub fn new(&self){}
     pub fn on_submit<F: FnMut(msg::Msg) + 'static>(&mut self, hook: F) {
         self._on_input_enter = Some(Box::new(hook));
     }
@@ -181,8 +176,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
 
         if !event::poll(tick_rate)? {
             continue;
-		}
-		//else {
+        }
+        //else {
 
         ////if let Event::Key(key) = event::read()? {
         ////    app.on_key_event(key);
@@ -208,11 +203,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
         //    app.menu.reset();
         //}
 
-		//}
+        //}
 
         if let Event::Key(key) = event::read()? {
-
-			app.menu.activate();
+            app.menu.activate();
             //app.on_key_event(key);
 
             for e in app.menu.drain_events() {
@@ -242,13 +236,13 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
             }
 
             for e in app.menu.drain_events() {
-				println!("e is present");
+                println!("e is present");
                 //if !app.input.value().trim().is_empty() {
-                    let m = msg::Msg::default().set_content(app.input.value().to_owned());
-                    app.add_message(m.clone());
-                    if let Some(ref mut hook) = app._on_input_enter {
-                        hook(m);
-                    }
+                let m = msg::Msg::default().set_content(app.input.value().to_owned());
+                app.add_message(m.clone());
+                if let Some(ref mut hook) = app._on_input_enter {
+                    hook(m);
+                }
                 //}
                 app.input.reset();
                 match e {
@@ -386,32 +380,19 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                 },
             }
         }
-		pub fn test()-> (){}
+        pub fn test() -> () {}
 
         pub fn on_key_event(app: &mut App, key: event::KeyEvent) {
             match key.code {
-                KeyCode::Char('h') | KeyCode::Left => {
-					app.menu.left()
-				},
-                KeyCode::Char('l') | KeyCode::Right => {
-					app.menu.right()
-				},
-                KeyCode::Char('j') | KeyCode::Down => {
-					app.menu.down()
-				},
-                KeyCode::Char('k') | KeyCode::Up => {
-					app.menu.up()
-				},
-                KeyCode::Esc => {
-					app.menu.reset()
-				},
-                KeyCode::Enter => {
-					app.menu.select()
-				},
+                KeyCode::Char('h') | KeyCode::Left => app.menu.left(),
+                KeyCode::Char('l') | KeyCode::Right => app.menu.right(),
+                KeyCode::Char('j') | KeyCode::Down => app.menu.down(),
+                KeyCode::Char('k') | KeyCode::Up => app.menu.up(),
+                KeyCode::Esc => app.menu.reset(),
+                KeyCode::Enter => app.menu.select(),
                 _ => {}
             }
         }
-
     }
 }
 
@@ -421,20 +402,22 @@ impl Widget for MyWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
         //Line::raw("MyWidget:Hello").render(area, buf);
 
-
         let mut state = MenuState::<&'static str>::new(vec![
             MenuItem::item("Foo", "label_foo"),
             MenuItem::item("Foo", "label_foo"),
             MenuItem::item("Foo", "label_foo"),
             MenuItem::item("Foo", "label_foo"),
-            MenuItem::group("Group", vec![
-                MenuItem::item("Bar 1", "label_bar_1"),
-                MenuItem::item("Bar 2", "label_bar_1"),
-            ])
+            MenuItem::group(
+                "Group",
+                vec![
+                    MenuItem::item("Bar 1", "label_bar_1"),
+                    MenuItem::item("Bar 2", "label_bar_1"),
+                ],
+            ),
         ]);
 
-	    state.activate();
-	    Menu::new().render(area, buf, &mut state);
+        state.activate();
+        Menu::new().render(area, buf, &mut state);
     }
 }
 
@@ -455,8 +438,8 @@ fn ui(f: &mut Frame, app: &App) {
     let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
     let scroll = app.input.visual_scroll(width as usize);
 
-	let rect = Rect::new(10, 10, chunks[0].width.max(10), chunks[0].height.max(10));
-	let mut buffer = Buffer::empty(rect);
+    let rect = Rect::new(10, 10, chunks[0].width.max(10), chunks[0].height.max(10));
+    let mut buffer = Buffer::empty(rect);
     //HEADER
     //let input = Paragraph::new(app.input.value())
     let header = Paragraph::new("")
@@ -467,10 +450,10 @@ fn ui(f: &mut Frame, app: &App) {
         })
         .scroll((0, scroll as u16))
         .block(Block::default().borders(Borders::ALL).title("HEADER"));
-	//f.render_widget(header, chunks[0]);
+    //f.render_widget(header, chunks[0]);
 
-	let my_widget = MyWidget;
-	f.render_widget(my_widget, chunks[0]);
+    let my_widget = MyWidget;
+    f.render_widget(my_widget, chunks[0]);
 
     //HEADER END
 
@@ -513,5 +496,4 @@ fn ui(f: &mut Frame, app: &App) {
         }
         InputMode::Command => {}
     }
-
 }

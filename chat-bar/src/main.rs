@@ -124,8 +124,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut app = ui::App::default();
 
-
-
     let mut char_vec: Vec<char> = Vec::new();
     for line in commit.summary().unwrap_or("HEAD").chars() {
         char_vec.push(line);

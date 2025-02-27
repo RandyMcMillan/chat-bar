@@ -5,12 +5,10 @@ use git2::Time;
 use libp2p::gossipsub;
 use once_cell::sync::OnceCell;
 use std::{
-	env,
-	env::args,
+    env,
+    env::args,
     error::Error,
-    io::{self,
-	stdout,
-	Stdout},
+    io::{self, stdout, Stdout},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -18,11 +16,11 @@ use std::{
 use tokio::{io as tokio_io, io::AsyncBufReadExt};
 use tracing::{debug, trace};
 
+use chat_bar::msg;
 use chat_bar::p2p;
 use chat_bar::ui;
-use p2p::evt_loop;
-use chat_bar::msg;
 use msg::*;
+use p2p::evt_loop;
 
 use color_eyre::config::HookBuilder;
 use ratatui::{
@@ -42,8 +40,6 @@ use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 
-
-
 #[derive(Default)]
 enum InputMode {
     #[default]
@@ -54,8 +50,6 @@ enum InputMode {
 }
 
 fn main() -> color_eyre::Result<()> {
-
-
     let args_vec: Vec<String> = env::args().collect();
     trace!("Arguments:");
     for (index, arg) in args_vec.iter().enumerate() {
@@ -109,27 +103,16 @@ fn main() -> color_eyre::Result<()> {
 
     let mut topic = String::from(format!("{:0>64}", 0));
 
-
-
-
-
-
-
-
-
     let mut terminal = init_terminal()?;
     let app = App::new().run(&mut terminal)?;
 
-    if let Some(topic_arg) = args().nth(1) {} else {}
-
-
-
-
+    if let Some(topic_arg) = args().nth(1) {
+    } else {
+    }
 
     restore_terminal()?;
     Ok(())
 }
-
 
 fn global_rt() -> &'static tokio::runtime::Runtime {
     static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
@@ -215,18 +198,17 @@ fn restore_terminal() -> io::Result<()> {
 
 /// App holds the state of the application
 pub struct App {
-	content: String,
+    content: String,
     /// Current value of the input box
     input: Input,
     /// Current input mode
     input_mode: InputMode,
     /// History of recorded messages
     messages: Arc<Mutex<Vec<msg::Msg>>>,
-	menu: MenuState<Action>,
+    menu: MenuState<Action>,
     _on_input_enter: Option<Box<dyn FnMut(msg::Msg)>>,
     msgs_scroll: usize,
 }
-
 
 impl App {
     pub fn on_submit<F: FnMut(msg::Msg) + 'static>(&mut self, hook: F) {
@@ -249,7 +231,6 @@ impl App {
             Self::add_msg(&mut msgs, msg);
         })
     }
-
 
     fn new() -> Self {
         Self {
