@@ -504,10 +504,9 @@ impl Widget for &mut App {
             .map(|m| ListItem::new(Line::from(m)))
             .take(height as usize)
             .collect();
-        let messages = List::new(messages_vec)
+        let messages = Widget::render(List::new(messages_vec)
             .direction(ratatui::widgets::ListDirection::BottomToTop)
-            .block(Block::default().borders(Borders::NONE));
-	    	//.render(chunks[2], buf);
+            .block(Block::default().borders(Borders::NONE)), chunks[2], buf);
 
         let input = Paragraph::new(self.input.value())
             .style(match self.input_mode {
@@ -525,11 +524,11 @@ impl Widget for &mut App {
 
 
 		//render last
-        "tui-menu"
-            .bold()
-            .blue()
-            .into_centered_line()
-            .render(chunks[0], buf);
+        //"tui-menu"
+        //    .bold()
+        //    .blue()
+        //    .into_centered_line()
+        //    .render(chunks[0], buf);
 
         // draw menu last, so it renders on top of other content
         Menu::new().render(chunks[0], buf, &mut self.menu);
