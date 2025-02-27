@@ -1,6 +1,5 @@
 /// This example is taken from https://raw.githubusercontent.com/fdehau/tui-rs/master/examples/user_input.rs
-//use crate::ui::event::Event;
-use ratatui::prelude::*;
+//use ratatui::prelude::*;
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     crossterm::{
@@ -121,7 +120,19 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
             }
 
             match app.input_mode {
+                //command prompts
                 InputMode::Normal => match key.code {
+                    KeyCode::Char(':') => {
+                        //if !app.input.value().trim().is_empty() {
+                        let m = msg::Msg::default()
+                            .set_content(String::from(":command prompt testing..."));
+                        app.add_message(m.clone());
+                        if let Some(ref mut hook) = app._on_input_enter {
+                            hook(m);
+                        }
+                        //}
+                        //app.input.reset();
+                    }
                     KeyCode::Char('e') | KeyCode::Char('i') => {
                         app.input_mode = InputMode::Editing;
                         app.msgs_scroll = usize::MAX;
@@ -137,7 +148,11 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                         let l = app.messages.lock().unwrap().len();
                         app.msgs_scroll = app.msgs_scroll.saturating_add(1).min(l);
                     }
-                    _ => {}
+                    _ => {
+                        //TODO command prompts
+                        //eval exec
+                        //app.input.handle_event(&Event::Key(key));
+                    }
                 },
                 InputMode::Editing => match key.code {
                     KeyCode::Enter => {
@@ -167,14 +182,21 @@ fn ui(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         // .margin(2)
-        .constraints([Constraint::Length(7), Constraint::Fill(5), Constraint::Length(3)].as_ref())
+        .constraints(
+            [
+                Constraint::Length(7),
+                Constraint::Fill(5),
+                Constraint::Length(3),
+            ]
+            .as_ref(),
+        )
         .split(f.size());
 
     let width = chunks[1].width.max(3) - 3; // keep 2 for borders and 1 for cursor
 
     let scroll = app.input.visual_scroll(width as usize);
 
-	//HEADER
+    //HEADER
     //let input = Paragraph::new(app.input.value())
     let header = Paragraph::new("")
         .style(match app.input_mode {
@@ -184,7 +206,7 @@ fn ui(f: &mut Frame, app: &App) {
         .scroll((0, scroll as u16))
         .block(Block::default().borders(Borders::ALL).title("HEADER"));
     f.render_widget(header, chunks[0]);
-	//HEADER END
+    //HEADER END
 
     //match app.input_mode {
     //    InputMode::Normal =>
@@ -215,7 +237,6 @@ fn ui(f: &mut Frame, app: &App) {
         .block(Block::default().borders(Borders::NONE));
     f.render_widget(messages, chunks[1]);
 
-
     let input = Paragraph::new(app.input.value())
         .style(match app.input_mode {
             InputMode::Normal => Style::default(),
@@ -224,7 +245,6 @@ fn ui(f: &mut Frame, app: &App) {
         .scroll((0, scroll as u16))
         .block(Block::default().borders(Borders::ALL).title("Input2"));
     f.render_widget(input, chunks[2]);
-
 
     match app.input_mode {
         InputMode::Normal =>
@@ -241,7 +261,4 @@ fn ui(f: &mut Frame, app: &App) {
             )
         }
     }
-
-
-
 }
