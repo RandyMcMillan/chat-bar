@@ -30,14 +30,9 @@ use ratatui::{
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
     layout::{Constraint, Direction, Layout},
-
-    prelude::{
-        Backend, Buffer, CrosstermBackend, Rect, StatefulWidget, Stylize,
-        Terminal, Widget,
-    },
+    prelude::{Backend, Buffer, CrosstermBackend, Rect, StatefulWidget, Stylize, Terminal, Widget},
     style::{Color, Style},
     widgets::{Block, Borders, List, ListItem, Paragraph},
-
 };
 use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
 
@@ -472,43 +467,36 @@ impl App {
 }
 
 impl Widget for &mut App {
-
     fn render(self, area: Rect, buf: &mut Buffer) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            // .margin(2)
+            .constraints(
+                [
+                    Constraint::Length(1), //0
+                    Constraint::Fill(1),   //1
+                    Constraint::Length(3), //2
+                ]
+                .as_ref(),
+            )
+            .split(area);
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        // .margin(2)
-        .constraints(
-            [
-                Constraint::Length(1), //0
-                Constraint::Fill(1),   //1
-                Constraint::Length(3), //2
-            ]
-            .as_ref(),
-        )
-        .split(area);
-
-
-    let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
-    let scroll = self.input.visual_scroll(width as usize);
-
+        let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
+        let scroll = self.input.visual_scroll(width as usize);
 
         Paragraph::new(self.content.as_str())
             .block(Block::bordered().title("Content").on_black())
             .render(chunks[1], buf);
 
-
-    let header = Paragraph::new("")
-        .style(match self.input_mode {
-            InputMode::Normal => Style::default(),
-            InputMode::Editing => Style::default().fg(Color::Cyan),
-            InputMode::Command => Style::default().fg(Color::Yellow),
-        })
-        .scroll((0, scroll as u16))
-        .block(Block::default().borders(Borders::ALL).title("HEADER"));
-    //f.render_widget(header, chunks[0]);
-
-
+        let header = Paragraph::new("")
+            .style(match self.input_mode {
+                InputMode::Normal => Style::default(),
+                InputMode::Editing => Style::default().fg(Color::Cyan),
+                InputMode::Command => Style::default().fg(Color::Yellow),
+            })
+            .scroll((0, scroll as u16))
+            .block(Block::default().borders(Borders::ALL).title("HEADER"))
+            .render(chunks[1], buf);
 
         "tui-menu"
             .bold()
