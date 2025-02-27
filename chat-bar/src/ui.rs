@@ -359,43 +359,6 @@ impl Widget for MyWidget {
     }
 }
 
-struct MenuWidget {
-	content: String,
-	state: MenuState::<&'static str>,
-}
-
-impl Widget for MenuWidget {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        use Constraint::*;
-        let [top, main] = Layout::vertical([Length(10), Fill(1)]).areas(area);
-
-
-        let mut state = MenuState::<&'static str>::new(vec![
-            MenuItem::item("Foo", "label_foo"),
-            MenuItem::group("Group", vec![
-                MenuItem::item("Bar 1", "label_bar_1"),
-                MenuItem::item("Bar 2", "label_bar_1"),
-            ])
-        ]);
-
-        let content = Line::raw("MenuWidget:Hello").render(area, buf);
-        Paragraph::new(self.content.as_str())
-            .block(Block::bordered().title("Content").on_black())
-            .render(main, buf);
-
-        "tui-menu"
-            .bold()
-            .blue()
-            .into_centered_line()
-            .render(top, buf);
-
-        // draw menu last, so it renders on top of other content
-        Menu::new().render(top, buf, &mut state);
-    }
-}
-
-
-
 fn ui(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -429,19 +392,6 @@ fn ui(f: &mut Frame, app: &App) {
 
 	let my_widget = MyWidget;
 	f.render_widget(my_widget, chunks[0]);
-
-    //let mut state = MenuState::<&'static str>::new(vec![
-    //    MenuItem::item("Foo", "label_foo"),
-    //    MenuItem::group("Group", vec![
-    //        MenuItem::item("Bar 1", "label_bar_1"),
-    //        MenuItem::item("Bar 2", "label_bar_1"),
-    //    ])
-    //]);
-	//state.activate();
-
-
-	//let menu = Menu::new().render(rect, &mut buffer, &mut state);
-	//f.render_widget(menu, chunks[0]);
 
     //HEADER END
 
