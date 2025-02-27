@@ -126,9 +126,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                 InputMode::Normal => match key.code {
 					//: mode
                     KeyCode::Char(':') => {
-                        app.input.reset();
+                        //app.input.reset(); //TODO
                         app.msgs_scroll = app.messages.lock().unwrap().len();
-                        if !app.input.value().trim().is_empty() {
+                        if !app.input.value().trim().is_empty() { //TODO
                             let m = msg::Msg::default()
                                 .set_content(String::from(":command prompt testing..."));
                             app.add_message(m.clone());
@@ -149,9 +149,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                     }
                     KeyCode::Char('>') => {
 						//> mode
-                        app.input.reset();
+                        //app.input.reset(); //TODO
                         app.msgs_scroll = app.messages.lock().unwrap().len();
-                        if !app.input.value().trim().is_empty() {
+                        if !app.input.value().trim().is_empty() { //TODO
                             let m = msg::Msg::default()
                                 .set_content(String::from(">command prompt testing..."));
                             app.add_message(m.clone());
