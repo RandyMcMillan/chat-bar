@@ -293,15 +293,9 @@ enum Action {
 
 impl App {
     fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
-        let tick_rate = Duration::from_millis(1);
+        let tick_rate = Duration::from_millis(10);
         loop {
             terminal.draw(|frame| frame.render_widget(&mut self, frame.size()))?;
-
-            if event::poll(tick_rate)? {
-                if let Event::Key(key) = event::read()? {
-                    self.on_key_event(key);
-                }
-            }
 
             for e in self.menu.drain_events() {
                 match e {
@@ -325,9 +319,8 @@ impl App {
 
             if event::poll(tick_rate)? {
                 if let Event::Key(key) = event::read()? {
-                    //      self.on_key_event(key);
-                    //}
-                    //}
+                    self.on_key_event(key);
+
                     match self.input_mode {
                         //command prompts
                         InputMode::Normal => match key.code {
@@ -449,6 +442,7 @@ impl App {
         }
     }
     pub fn test_function() -> () {}
+
     fn on_key_event(&mut self, key: event::KeyEvent) {
         if key.code == KeyCode::Char('c') && key.modifiers.contains(event::KeyModifiers::CONTROL) {
             let _ = restore_terminal();
@@ -493,7 +487,7 @@ impl Widget for &mut App {
                 InputMode::Command => Style::default().fg(Color::Yellow),
             })
             .scroll((0, scroll as u16))
-            .block(Block::default().borders(Borders::ALL).title("HEADER"))//;
+            .block(Block::default().borders(Borders::ALL).title("HEADER")) //;
             .render(chunks[1], buf);
 
         let height = chunks[1].height;
@@ -504,9 +498,13 @@ impl Widget for &mut App {
             .map(|m| ListItem::new(Line::from(m)))
             .take(height as usize)
             .collect();
-        let messages = Widget::render(List::new(messages_vec)
-            .direction(ratatui::widgets::ListDirection::BottomToTop)
-            .block(Block::default().borders(Borders::NONE)), chunks[2], buf);
+        let messages = Widget::render(
+            List::new(messages_vec)
+                .direction(ratatui::widgets::ListDirection::BottomToTop)
+                .block(Block::default().borders(Borders::ALL)),
+            chunks[2],
+            buf,
+        );
 
         let input = Paragraph::new(self.input.value())
             .style(match self.input_mode {
@@ -515,15 +513,10 @@ impl Widget for &mut App {
                 InputMode::Command => Style::default().fg(Color::Yellow),
             })
             .scroll((0, scroll as u16))
-            .block(Block::default().borders(Borders::ALL).title("Input2"))//;
-	    	.render(chunks[3], buf);
+            .block(Block::default().borders(Borders::ALL).title("Input2")) //;
+            .render(chunks[3], buf);
 
-
-
-
-
-
-		//render last
+        //render last
         //"tui-menu"
         //    .bold()
         //    .blue()
