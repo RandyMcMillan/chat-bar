@@ -292,7 +292,9 @@ enum Action {
 }
 
 impl App {
+
     fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
+    let tick_rate = Duration::from_millis(100);
         loop {
             terminal.draw(|frame| frame.render_widget(&mut self, frame.size()))?;
 
@@ -325,6 +327,14 @@ impl App {
     }
 
     fn on_key_event(&mut self, key: event::KeyEvent) {
+
+        if key.code == KeyCode::Char('c')
+            && key.modifiers.contains(event::KeyModifiers::CONTROL)
+        {
+			let _ = restore_terminal();
+            std::process::exit(0);
+        }
+
         match key.code {
             KeyCode::Char('h') | KeyCode::Left => self.menu.left(),
             KeyCode::Char('l') | KeyCode::Right => self.menu.right(),
@@ -334,6 +344,9 @@ impl App {
             KeyCode::Enter => self.menu.select(),
             _ => {}
         }
+
+
+
     }
 }
 
