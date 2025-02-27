@@ -32,6 +32,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::{Backend, Buffer, CrosstermBackend, Rect, StatefulWidget, Stylize, Terminal, Widget},
     style::{Color, Style},
+    text::Line,
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
@@ -484,10 +485,6 @@ impl Widget for &mut App {
         let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
         let scroll = self.input.visual_scroll(width as usize);
 
-        //Paragraph::new(self.content.as_str())
-        //    .block(Block::bordered().title("Content").on_black())
-        //    .render(chunks[1], buf);
-
         let header = Paragraph::new(self.content.as_str())
             .style(match self.input_mode {
                 InputMode::Normal => Style::default(),
@@ -495,9 +492,38 @@ impl Widget for &mut App {
                 InputMode::Command => Style::default().fg(Color::Yellow),
             })
             .scroll((0, scroll as u16))
-            .block(Block::default().borders(Borders::ALL).title("HEADER"))
+            .block(Block::default().borders(Borders::ALL).title("HEADER"))//;
             .render(chunks[1], buf);
 
+        let height = chunks[1].height;
+        let msgs = self.messages.lock().unwrap();
+        let messages: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
+            .iter()
+            .rev()
+            .map(|m| ListItem::new(Line::from(m)))
+            .take(height as usize)
+            .collect();
+        let messages = List::new(messages)
+            .direction(ratatui::widgets::ListDirection::BottomToTop)
+            .block(Block::default().borders(Borders::NONE));
+	    	//.render(chunks[2], buf);
+
+        let input = Paragraph::new(self.input.value())
+            .style(match self.input_mode {
+                InputMode::Normal => Style::default(),
+                InputMode::Editing => Style::default().fg(Color::Cyan),
+                InputMode::Command => Style::default().fg(Color::Yellow),
+            })
+            .scroll((0, scroll as u16))
+            .block(Block::default().borders(Borders::ALL).title("Input2"))//;
+	    	.render(chunks[2], buf);
+
+
+
+
+
+
+		//render last
         "tui-menu"
             .bold()
             .blue()
