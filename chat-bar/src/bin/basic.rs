@@ -40,6 +40,60 @@ fn main() -> color_eyre::Result<()> {
     Ok(())
 }
 
+
+fn global_rt() -> &'static tokio::runtime::Runtime {
+    static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
+    RT.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
+}
+
+//this formats and prints the commit header/message
+fn print_commit_header(commit: &Commit) {
+    println!("commit {}", commit.id());
+
+    if commit.parents().len() > 1 {
+        print!("Merge:");
+        for id in commit.parent_ids() {
+            print!(" {:.8}", id);
+        }
+        println!();
+    }
+
+    let author = commit.author();
+    println!("Author: {}", author);
+    print_time(&author.when(), "Date:   ");
+    println!();
+
+    for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+        println!("    {}", line);
+    }
+    println!();
+}
+
+//called from above
+//part of formatting the output
+fn print_time(time: &Time, prefix: &str) {
+    let (offset, sign) = match time.offset_minutes() {
+        n if n < 0 => (-n, '-'),
+        n => (n, '+'),
+    };
+    let (hours, minutes) = (offset / 60, offset % 60);
+    let ts = time::Timespec::new(time.seconds() + (time.offset_minutes() as i64) * 60, 0);
+    let time = time::at(ts);
+
+    println!(
+        "{}{} {}{:02}{:02}",
+        prefix,
+        time.strftime("%a %b %e %T %Y").unwrap(),
+        sign,
+        hours,
+        minutes
+    );
+}
+
+fn collect_chars_to_string(chars: &[char]) -> String {
+    chars.iter().collect()
+}
+
 /// Install panic and error hooks that restore the terminal before printing the error.
 pub fn init_hooks() -> color_eyre::Result<()> {
     let (panic, error) = HookBuilder::default().into_hooks();
