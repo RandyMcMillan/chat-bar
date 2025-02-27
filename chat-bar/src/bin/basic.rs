@@ -4,9 +4,16 @@ use git2::Repository;
 use git2::Time;
 use libp2p::gossipsub;
 use once_cell::sync::OnceCell;
-use std::env;
-use std::env::args;
-use std::{error::Error, time::Duration};
+use std::{
+	env,
+	env::args,
+    error::Error,
+    io::{self,
+	stdout,
+	Stdout},
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use tokio::{io as tokio_io, io::AsyncBufReadExt};
 use tracing::{debug, trace};
@@ -30,8 +37,21 @@ use ratatui::{
     },
     widgets::{Block, Paragraph},
 };
-use std::io::{self, stdout, Stdout};
 use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
+
+use tui_input::backend::crossterm::EventHandler;
+use tui_input::Input;
+
+
+
+#[derive(Default)]
+enum InputMode {
+    #[default]
+    Normal,
+    //#[default]
+    Editing,
+    Command,
+}
 
 fn main() -> color_eyre::Result<()> {
 
@@ -193,15 +213,52 @@ fn restore_terminal() -> io::Result<()> {
     execute!(stdout(), LeaveAlternateScreen,)
 }
 
-struct App {
-    content: String,
-    menu: MenuState<Action>,
+/// App holds the state of the application
+pub struct App {
+	content: String,
+    /// Current value of the input box
+    input: Input,
+    /// Current input mode
+    input_mode: InputMode,
+    /// History of recorded messages
+    messages: Arc<Mutex<Vec<msg::Msg>>>,
+	menu: MenuState<Action>,
+    _on_input_enter: Option<Box<dyn FnMut(msg::Msg)>>,
+    msgs_scroll: usize,
 }
 
+
 impl App {
+    pub fn on_submit<F: FnMut(msg::Msg) + 'static>(&mut self, hook: F) {
+        self._on_input_enter = Some(Box::new(hook));
+    }
+
+    pub fn add_message(&self, msg: msg::Msg) {
+        let mut msgs = self.messages.lock().unwrap();
+        Self::add_msg(&mut msgs, msg);
+    }
+
+    fn add_msg(msgs: &mut Vec<msg::Msg>, msg: msg::Msg) {
+        msgs.push(msg);
+    }
+
+    pub fn add_msg_fn(&self) -> Box<dyn FnMut(msg::Msg) + 'static + Send> {
+        let m = self.messages.clone();
+        Box::new(move |msg| {
+            let mut msgs = m.lock().unwrap();
+            Self::add_msg(&mut msgs, msg);
+        })
+    }
+
+
     fn new() -> Self {
         Self {
             content: String::new(),
+            input: Input::default(),
+            input_mode: InputMode::default(),
+            messages: Default::default(),
+            _on_input_enter: None,
+            msgs_scroll: usize::MAX,
             menu: MenuState::new(vec![
                 MenuItem::group(
                     "File",
