@@ -28,9 +28,11 @@ use crate::msg;
 
 #[derive(Default)]
 enum InputMode {
-    Normal,
     #[default]
+    Normal,
+    //#[default]
     Editing,
+    Command,
 }
 
 /// App holds the state of the application
@@ -122,22 +124,57 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
             match app.input_mode {
                 //command prompts
                 InputMode::Normal => match key.code {
+					//: mode
                     KeyCode::Char(':') => {
-                        //if !app.input.value().trim().is_empty() {
-                        let m = msg::Msg::default()
-                            .set_content(String::from(":command prompt testing..."));
-                        app.add_message(m.clone());
-                        if let Some(ref mut hook) = app._on_input_enter {
-                            hook(m);
-                        }
-                        //}
-                        //app.input.reset();
+                        app.input.reset();
+                        app.msgs_scroll = app.messages.lock().unwrap().len();
+                        if !app.input.value().trim().is_empty() {
+                            let m = msg::Msg::default()
+                                .set_content(String::from(":command prompt testing..."));
+                            app.add_message(m.clone());
+                            if let Some(ref mut hook) = app._on_input_enter {
+                                hook(m);
+                            }
+						} else {
+                            let m = msg::Msg::default()
+                                .set_content(String::from("else:command prompt testing..."));
+                            app.add_message(m.clone());
+                            if let Some(ref mut hook) = app._on_input_enter {
+                                hook(m);
+                            }
+
+						}
+                        app.input.handle_event(&Event::Key(key));
+                        app.input_mode = InputMode::Command;
+                    }
+                    KeyCode::Char('>') => {
+						//> mode
+                        app.input.reset();
+                        app.msgs_scroll = app.messages.lock().unwrap().len();
+                        if !app.input.value().trim().is_empty() {
+                            let m = msg::Msg::default()
+                                .set_content(String::from(">command prompt testing..."));
+                            app.add_message(m.clone());
+                            if let Some(ref mut hook) = app._on_input_enter {
+                                hook(m);
+                            }
+						} else {
+                            let m = msg::Msg::default()
+                                .set_content(String::from("else>command prompt testing..."));
+                            app.add_message(m.clone());
+                            if let Some(ref mut hook) = app._on_input_enter {
+                                hook(m);
+                            }
+
+						}
+                        app.input.handle_event(&Event::Key(key));
+                        app.input_mode = InputMode::Command;
                     }
                     KeyCode::Char('e') | KeyCode::Char('i') => {
                         app.input_mode = InputMode::Editing;
                         app.msgs_scroll = usize::MAX;
                     }
-                    KeyCode::Char('q') | KeyCode::Esc => {
+                    KeyCode::Char('q') /*| KeyCode::Esc*/ => {
                         return Ok(());
                     }
                     KeyCode::Up => {
@@ -148,6 +185,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                         let l = app.messages.lock().unwrap().len();
                         app.msgs_scroll = app.msgs_scroll.saturating_add(1).min(l);
                     }
+					KeyCode::Enter => {
+
+
+					}
                     _ => {
                         //TODO command prompts
                         //eval exec
@@ -172,6 +213,23 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                     _ => {
                         app.input.handle_event(&Event::Key(key));
                     }
+                },
+                InputMode::Command => match key.code {
+                    KeyCode::Esc => {
+                        app.input_mode = InputMode::Normal;
+                        app.msgs_scroll = app.messages.lock().unwrap().len();
+                        app.input.reset();
+                    }
+                    KeyCode::Enter => {}
+                    KeyCode::Up => {
+                        let l = app.messages.lock().unwrap().len();
+                        app.msgs_scroll = app.msgs_scroll.saturating_sub(1).min(l);
+                    }
+                    KeyCode::Down => {
+                        let l = app.messages.lock().unwrap().len();
+                        app.msgs_scroll = app.msgs_scroll.saturating_add(1).min(l);
+                    }
+                    _ => {}
                 },
             }
         }
@@ -202,6 +260,7 @@ fn ui(f: &mut Frame, app: &App) {
         .style(match app.input_mode {
             InputMode::Normal => Style::default(),
             InputMode::Editing => Style::default().fg(Color::Cyan),
+            InputMode::Command => Style::default().fg(Color::Yellow),
         })
         .scroll((0, scroll as u16))
         .block(Block::default().borders(Borders::ALL).title("HEADER"));
@@ -241,6 +300,7 @@ fn ui(f: &mut Frame, app: &App) {
         .style(match app.input_mode {
             InputMode::Normal => Style::default(),
             InputMode::Editing => Style::default().fg(Color::Cyan),
+            InputMode::Command => Style::default().fg(Color::Yellow),
         })
         .scroll((0, scroll as u16))
         .block(Block::default().borders(Borders::ALL).title("Input2"));
@@ -260,5 +320,6 @@ fn ui(f: &mut Frame, app: &App) {
                 chunks[2].y + 1,
             )
         }
+        InputMode::Command => {}
     }
 }

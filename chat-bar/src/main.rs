@@ -136,7 +136,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         app.add_message(
             Msg::default()
                 .set_content(String::from("-------"))
-                .set_kind(MsgKind::Raw),
+                .set_kind(MsgKind::Command),
         );
 
         topic = String::from(format!("\n\n{}", topic_arg));
@@ -152,7 +152,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         app.add_message(
             Msg::default()
                 .set_content(String::from("-------"))
-                .set_kind(MsgKind::Raw),
+                .set_kind(MsgKind::Command),
         );
 
         //push commit body
@@ -160,13 +160,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             app.add_message(
                 Msg::default()
                     .set_content(line.to_string())
-                    .set_kind(MsgKind::Raw),
+                    .set_kind(MsgKind::System),
             );
         }
         app.add_message(
             Msg::default()
                 .set_content(String::from("-------"))
-                .set_kind(MsgKind::Raw),
+                .set_kind(MsgKind::Command),
         );
 
         //commit.id is padded to fit sha256/nostr privkey context
@@ -175,7 +175,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         app.add_message(
             Msg::default()
                 .set_content(topic.clone())
-                .set_kind(MsgKind::Raw),
+                .set_kind(MsgKind::Command),
         );
 
         debug!("{}", topic);

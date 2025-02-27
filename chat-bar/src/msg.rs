@@ -19,6 +19,7 @@ pub enum MsgKind {
     Leave,
     System,
     Raw,
+    Command,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -76,18 +77,35 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                     .fg(Color::DarkGray)
                     .add_modifier(Modifier::ITALIC),
             )),
-            Chat => Line::default().spans(vec![
+            Chat => {
+                if m.from == *USER_NAME {
+                    Line::default().spans(vec![
+                        Span::styled(
+                            format!("{}{} ", &m.from, ">"),
+                            Style::default().fg(gen_color_by_hash(&m.from)),
+                        ),
+                        m.content.clone().into(),
+                    ])
+                } else {
+                    Line::default().spans(vec![
+                        m.content.clone().into(),
+                        Span::styled(
+                            format!(" {}{}", "<", &m.from),
+                            Style::default().fg(gen_color_by_hash(&m.from)),
+                        ),
+                    ])
+                }
+            }
+            Raw => m.content.clone().into(),
+            Command => Line::default().spans(vec![
                 Span::styled(
-                    format!(
-                        "{}{}: ",
-                        m.from,
-                        if m.from == *USER_NAME { " (You)" } else { "" }
-                    ),
-                    Style::default().fg(gen_color_by_hash(&m.from)),
+                    format!("Command: {}{} ", &m.from, ">"),
+                    Style::default()
+                        .fg(gen_color_by_hash(&m.from))
+                        .add_modifier(Modifier::ITALIC),
                 ),
                 m.content.clone().into(),
             ]),
-            Raw => m.content.clone().into(),
         }
     }
 }
@@ -100,6 +118,7 @@ impl Display for Msg {
             MsgKind::Chat => write!(f, "{}: {}", self.from, self.content),
             MsgKind::System => write!(f, "[System] {}", self.content),
             MsgKind::Raw => write!(f, "{}", self.content),
+            MsgKind::Command => write!(f, "[Command] {}:{}", self.from, self.content),
         }
     }
 }
