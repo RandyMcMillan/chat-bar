@@ -35,7 +35,9 @@ use ratatui::{
         Backend, Buffer, CrosstermBackend, Rect, StatefulWidget, Stylize,
         Terminal, Widget,
     },
-    widgets::{Block, Paragraph},
+    style::{Color, Style},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
+
 };
 use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
 
@@ -472,6 +474,7 @@ impl App {
 impl Widget for &mut App {
 
     fn render(self, area: Rect, buf: &mut Buffer) {
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         // .margin(2)
@@ -485,9 +488,27 @@ impl Widget for &mut App {
         )
         .split(area);
 
+
+    let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
+    let scroll = self.input.visual_scroll(width as usize);
+
+
         Paragraph::new(self.content.as_str())
             .block(Block::bordered().title("Content").on_black())
             .render(chunks[1], buf);
+
+
+    let header = Paragraph::new("")
+        .style(match self.input_mode {
+            InputMode::Normal => Style::default(),
+            InputMode::Editing => Style::default().fg(Color::Cyan),
+            InputMode::Command => Style::default().fg(Color::Yellow),
+        })
+        .scroll((0, scroll as u16))
+        .block(Block::default().borders(Borders::ALL).title("HEADER"));
+    //f.render_widget(header, chunks[0]);
+
+
 
         "tui-menu"
             .bold()
