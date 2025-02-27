@@ -525,13 +525,6 @@ impl Widget for &mut App {
             .block(Block::default().borders(Borders::ALL).title("Input2")) //;
             .render(chunks[3], buf);
 
-        //render last
-        //"tui-menu"
-        //    .bold()
-        //    .blue()
-        //    .into_centered_line()
-        //    .render(chunks[0], buf);
-
         // draw menu last, so it renders on top of other content
         Menu::new().render(chunks[0], buf, &mut self.menu);
     }
