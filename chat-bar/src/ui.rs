@@ -117,7 +117,7 @@ impl Default for App {
 }
 
 impl App {
-	pub fn new(&self){}
+	//pub fn new(&self){}
     pub fn on_submit<F: FnMut(msg::Msg) + 'static>(&mut self, hook: F) {
         self._on_input_enter = Some(Box::new(hook));
     }
@@ -181,35 +181,60 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
 
         if !event::poll(tick_rate)? {
             continue;
-		} else {
-
-        if let Event::Key(key) = event::read()? {
-            app.on_key_event(key);
-        }
-
-        for e in app.menu.drain_events() {
-            match e {
-                MenuEvent::Selected(item) => match item {
-                    Action::Exit => {
-                        return Ok(());
-                    }
-                    Action::FileNew => {
-                        app.content.clear();
-                    }
-                    Action::FileOpenRecent(file) => {
-                        app.content = format!("content of {file}");
-                    }
-                    action => {
-                        app.content = format!("{action:?} not implemented");
-                    }
-                },
-            }
-            app.menu.reset();
-        }
-
 		}
+		//else {
+
+        ////if let Event::Key(key) = event::read()? {
+        ////    app.on_key_event(key);
+        ////}
+
+        //for e in app.menu.drain_events() {
+        //    match e {
+        //        MenuEvent::Selected(item) => match item {
+        //            Action::Exit => {
+        //                return Ok(());
+        //            }
+        //            Action::FileNew => {
+        //                app.content.clear();
+        //            }
+        //            Action::FileOpenRecent(file) => {
+        //                app.content = format!("content of {file}");
+        //            }
+        //            action => {
+        //                app.content = format!("{action:?} not implemented");
+        //            }
+        //        },
+        //    }
+        //    app.menu.reset();
+        //}
+
+		//}
 
         if let Event::Key(key) = event::read()? {
+
+			app.menu.activate();
+            //app.on_key_event(key);
+
+            for e in app.menu.drain_events() {
+                match e {
+                    MenuEvent::Selected(item) => match item {
+                        Action::Exit => {
+                            return Ok(());
+                        }
+                        Action::FileNew => {
+                            app.content.clear();
+                        }
+                        Action::FileOpenRecent(file) => {
+                            app.content = format!("content of {file}");
+                        }
+                        action => {
+                            app.content = format!("{action:?} not implemented");
+                        }
+                    },
+                }
+                app.menu.reset();
+            }
+
             if key.code == KeyCode::Char('c')
                 && key.modifiers.contains(event::KeyModifiers::CONTROL)
             {
@@ -217,6 +242,15 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
             }
 
             for e in app.menu.drain_events() {
+				println!("e is present");
+                //if !app.input.value().trim().is_empty() {
+                    let m = msg::Msg::default().set_content(app.input.value().to_owned());
+                    app.add_message(m.clone());
+                    if let Some(ref mut hook) = app._on_input_enter {
+                        hook(m);
+                    }
+                //}
+                app.input.reset();
                 match e {
                     MenuEvent::Selected(item) => match item {
                         Action::Exit => {
@@ -240,6 +274,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                 //command prompts
                 InputMode::Normal => match key.code {
 					//: mode
+
+
+
+
                     KeyCode::Char(':') => {
                         //app.input.reset(); //TODO
                         app.msgs_scroll = app.messages.lock().unwrap().len();
@@ -352,12 +390,24 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
 
         pub fn on_key_event(app: &mut App, key: event::KeyEvent) {
             match key.code {
-                KeyCode::Char('h') | KeyCode::Left => app.menu.left(),
-                KeyCode::Char('l') | KeyCode::Right => app.menu.right(),
-                KeyCode::Char('j') | KeyCode::Down => app.menu.down(),
-                KeyCode::Char('k') | KeyCode::Up => app.menu.up(),
-                KeyCode::Esc => app.menu.reset(),
-                KeyCode::Enter => app.menu.select(),
+                KeyCode::Char('h') | KeyCode::Left => {
+					app.menu.left()
+				},
+                KeyCode::Char('l') | KeyCode::Right => {
+					app.menu.right()
+				},
+                KeyCode::Char('j') | KeyCode::Down => {
+					app.menu.down()
+				},
+                KeyCode::Char('k') | KeyCode::Up => {
+					app.menu.up()
+				},
+                KeyCode::Esc => {
+					app.menu.reset()
+				},
+                KeyCode::Enter => {
+					app.menu.select()
+				},
                 _ => {}
             }
         }
@@ -373,6 +423,9 @@ impl Widget for MyWidget {
 
 
         let mut state = MenuState::<&'static str>::new(vec![
+            MenuItem::item("Foo", "label_foo"),
+            MenuItem::item("Foo", "label_foo"),
+            MenuItem::item("Foo", "label_foo"),
             MenuItem::item("Foo", "label_foo"),
             MenuItem::group("Group", vec![
                 MenuItem::item("Bar 1", "label_bar_1"),
