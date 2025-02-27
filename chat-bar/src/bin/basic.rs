@@ -482,16 +482,16 @@ impl Widget for &mut App {
             // .margin(2)
             .constraints(
                 [
-                    Constraint::Length(1), //0
-                    Constraint::Length(3), //1
+                    Constraint::Length(1), //0 // MENU
+                    Constraint::Fill(3), //1 // HEADER
                     Constraint::Fill(1),   //2
-                    Constraint::Length(3), //3
+                    Constraint::Length(3), //3 //INPUT
                 ]
                 .as_ref(),
             )
             .split(area);
 
-        let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
+        let width = chunks[1].width.max(3) - 3; // keep 2 for borders and 1 for cursor
         let scroll = self.input.visual_scroll(width as usize);
 
         let header = Paragraph::new(self.content.as_str())
