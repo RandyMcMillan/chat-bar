@@ -477,29 +477,25 @@ impl Widget for &mut App {
         // .margin(2)
         .constraints(
             [
-                Constraint::Length(7), //0
-                Constraint::Fill(5),   //1
+                Constraint::Length(1), //0
+                Constraint::Fill(1),   //1
                 Constraint::Length(3), //2
             ]
             .as_ref(),
         )
         .split(area);
 
-
-        use Constraint::*;
-        let [top, main] = Layout::vertical([Length(1), Fill(1)]).areas(area);
-
         Paragraph::new(self.content.as_str())
             .block(Block::bordered().title("Content").on_black())
-            .render(main, buf);
+            .render(chunks[1], buf);
 
         "tui-menu"
             .bold()
             .blue()
             .into_centered_line()
-            .render(top, buf);
+            .render(chunks[0], buf);
 
         // draw menu last, so it renders on top of other content
-        Menu::new().render(top, buf, &mut self.menu);
+        Menu::new().render(chunks[0], buf, &mut self.menu);
     }
 }
