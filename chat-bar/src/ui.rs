@@ -139,6 +139,17 @@ impl App {
         })
     }
 
+    pub fn on_key_event(&mut self, key: event::KeyEvent) {
+        match key.code {
+            KeyCode::Char('h') | KeyCode::Left => self.menu.left(),
+            KeyCode::Char('l') | KeyCode::Right => self.menu.right(),
+            KeyCode::Char('j') | KeyCode::Down => self.menu.down(),
+            KeyCode::Char('k') | KeyCode::Up => self.menu.up(),
+            KeyCode::Esc => self.menu.reset(),
+            KeyCode::Enter => self.menu.select(),
+            _ => {}
+        }
+    }
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         // setup terminal
         enable_raw_mode()?;
@@ -172,25 +183,29 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
             continue;
 		} else {
 
-        //for e in app.menu.drain_events() {
-        //    match e {
-        //        MenuEvent::Selected(item) => match item {
-        //            Action::Exit => {
-        //                return Ok(());
-        //            }
-        //            Action::FileNew => {
-        //                app.content.clear();
-        //            }
-        //            Action::FileOpenRecent(file) => {
-        //                app.content = format!("content of {file}");
-        //            }
-        //            action => {
-        //                app.content = format!("{action:?} not implemented");
-        //            }
-        //        },
-        //    }
-        //    app.menu.reset();
-        //}
+        if let Event::Key(key) = event::read()? {
+            app.on_key_event(key);
+        }
+
+        for e in app.menu.drain_events() {
+            match e {
+                MenuEvent::Selected(item) => match item {
+                    Action::Exit => {
+                        return Ok(());
+                    }
+                    Action::FileNew => {
+                        app.content.clear();
+                    }
+                    Action::FileOpenRecent(file) => {
+                        app.content = format!("content of {file}");
+                    }
+                    action => {
+                        app.content = format!("{action:?} not implemented");
+                    }
+                },
+            }
+            app.menu.reset();
+        }
 
 		}
 
@@ -333,14 +348,28 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                 },
             }
         }
+		pub fn test()-> (){}
+
+        pub fn on_key_event(app: &mut App, key: event::KeyEvent) {
+            match key.code {
+                KeyCode::Char('h') | KeyCode::Left => app.menu.left(),
+                KeyCode::Char('l') | KeyCode::Right => app.menu.right(),
+                KeyCode::Char('j') | KeyCode::Down => app.menu.down(),
+                KeyCode::Char('k') | KeyCode::Up => app.menu.up(),
+                KeyCode::Esc => app.menu.reset(),
+                KeyCode::Enter => app.menu.select(),
+                _ => {}
+            }
+        }
+
     }
 }
 
-struct MyWidget;
+pub struct MyWidget;
 
 impl Widget for MyWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        Line::raw("MyWidget:Hello").render(area, buf);
+        //Line::raw("MyWidget:Hello").render(area, buf);
 
 
         let mut state = MenuState::<&'static str>::new(vec![
@@ -350,12 +379,9 @@ impl Widget for MyWidget {
                 MenuItem::item("Bar 2", "label_bar_1"),
             ])
         ]);
+
 	    state.activate();
-
-
 	    Menu::new().render(area, buf, &mut state);
-
-
     }
 }
 
@@ -434,14 +460,5 @@ fn ui(f: &mut Frame, app: &App) {
         }
         InputMode::Command => {}
     }
-
-    //    "tui-menu"
-    //        .bold()
-    //        .blue()
-    //        .into_centered_line()
-    //        .render(chunks[0], &mut buffer);
-
-
-    //let _ = Menu::new().render(chunks[0], &mut buffer, &mut state);
 
 }
