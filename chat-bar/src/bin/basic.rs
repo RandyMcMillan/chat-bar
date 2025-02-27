@@ -34,8 +34,78 @@ use std::io::{self, stdout, Stdout};
 use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
 
 fn main() -> color_eyre::Result<()> {
+
+
+    let args_vec: Vec<String> = env::args().collect();
+    trace!("Arguments:");
+    for (index, arg) in args_vec.iter().enumerate() {
+        if Some(index) == Some(0) {
+            trace!("Some(index) = Some(0):  {}: {}", index, arg);
+        } else {
+            trace!("  {}: {}", index, arg);
+        }
+    }
+
+    if let Some(log_level) = args().nth(2) {
+        Builder::from_env(
+            Env::default().default_filter_or(log_level + ",libp2p_gossipsub::behaviour=error"),
+        )
+        .init();
+    } else {
+        Builder::from_env(
+            Env::default().default_filter_or("none,libp2p_gossipsub::behaviour=error"),
+        )
+        .init();
+    }
+
+    // Create a Gossipsub topic
+    // Open the Git repository
+    let repo = Repository::discover(".")?; // Opens the repository in the current directory
+
+    // Get the reference to HEAD
+    let head = repo.head()?;
+
+    // Print the name of HEAD (e.g., "refs/heads/main" or "HEAD")
+    debug!("HEAD: {}", head.name().unwrap_or("HEAD"));
+
+    // Get the commit object that HEAD points to
+    let commit = head.peel_to_commit()?;
+
+    // Print the commit ID (SHA-1 hash)
+    debug!("Commit ID: {}", commit.id());
+
+    // Optionally, print other commit information
+    debug!(
+        "Commit message: {}",
+        commit.message().unwrap_or("No message")
+    );
+
+    let mut char_vec: Vec<char> = Vec::new();
+    for line in commit.summary().unwrap_or("HEAD").chars() {
+        char_vec.push(line);
+    }
+    let commit_summary = collect_chars_to_string(&char_vec);
+    //debug!("commit_summary:\n\n{}\n\n", commit_summary);
+
+    let mut topic = String::from(format!("{:0>64}", 0));
+
+
+
+
+
+
+
+
+
     let mut terminal = init_terminal()?;
-    App::new().run(&mut terminal)?;
+    let app = App::new().run(&mut terminal)?;
+
+    if let Some(topic_arg) = args().nth(1) {} else {}
+
+
+
+
+
     restore_terminal()?;
     Ok(())
 }
