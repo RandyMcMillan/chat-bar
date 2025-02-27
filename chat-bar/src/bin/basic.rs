@@ -484,11 +484,11 @@ impl Widget for &mut App {
         let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
         let scroll = self.input.visual_scroll(width as usize);
 
-        Paragraph::new(self.content.as_str())
-            .block(Block::bordered().title("Content").on_black())
-            .render(chunks[1], buf);
+        //Paragraph::new(self.content.as_str())
+        //    .block(Block::bordered().title("Content").on_black())
+        //    .render(chunks[1], buf);
 
-        let header = Paragraph::new("")
+        let header = Paragraph::new(self.content.as_str())
             .style(match self.input_mode {
                 InputMode::Normal => Style::default(),
                 InputMode::Editing => Style::default().fg(Color::Cyan),
