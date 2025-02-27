@@ -8,6 +8,10 @@ use ratatui::{
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
     layout::{Constraint, Direction, Layout},
+    prelude::{
+            Buffer, Rect, StatefulWidget, Stylize,
+            Widget,
+        },
     style::Color,
     text::Line,
     widgets::{Block, Borders, List, ListItem, Paragraph},
@@ -17,12 +21,15 @@ use ratatui::{
 use ratatui::style::Style;
 use std::{
     error::Error,
-    io,
+    io::{self,
+	stdout,
+	Stdout},
     sync::{Arc, Mutex},
     time::Duration,
 };
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
+use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
 
 use crate::msg;
 
@@ -35,31 +42,102 @@ enum InputMode {
     Command,
 }
 
+#[derive(Debug, Clone)]
+enum Action {
+    FileNew,
+    FileOpen,
+    FileOpenRecent(String),
+    FileSaveAs,
+    Exit,
+    EditCopy,
+    EditCut,
+    EditPaste,
+    AboutAuthor,
+    AboutHelp,
+}
+
 /// App holds the state of the application
 pub struct App {
+	content: String,
     /// Current value of the input box
     input: Input,
     /// Current input mode
     input_mode: InputMode,
     /// History of recorded messages
     messages: Arc<Mutex<Vec<msg::Msg>>>,
+	menu: MenuState<Action>,
     _on_input_enter: Option<Box<dyn FnMut(msg::Msg)>>,
     msgs_scroll: usize,
+}
+
+impl Widget for &mut App {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        use Constraint::*;
+        let [top, main] = Layout::vertical([Length(1), Fill(1)]).areas(area);
+
+        Paragraph::new(self.content.as_str())
+            .block(Block::bordered().title("Content").on_black())
+            .render(main, buf);
+
+        "tui-menu"
+            .bold()
+            .blue()
+            .into_centered_line()
+            .render(top, buf);
+
+        // draw menu last, so it renders on top of other content
+        Menu::new().render(top, buf, &mut self.menu);
+    }
 }
 
 impl Default for App {
     fn default() -> Self {
         App {
+			content: String::new(),
             input: Input::default(),
             input_mode: InputMode::default(),
             messages: Default::default(),
             _on_input_enter: None,
             msgs_scroll: usize::MAX,
+            menu: MenuState::new(vec![
+                MenuItem::group(
+                    "File",
+                    vec![
+                        MenuItem::item("New", Action::FileNew),
+                        MenuItem::item("Open", Action::FileOpen),
+                        MenuItem::group(
+                            "Open recent",
+                            ["file_1.txt", "file_2.txt"]
+                                .iter()
+                                .map(|&f| MenuItem::item(f, Action::FileOpenRecent(f.into())))
+                                .collect(),
+                        ),
+                        MenuItem::item("Save as", Action::FileSaveAs),
+                        MenuItem::item("Exit", Action::Exit),
+                    ],
+                ),
+                MenuItem::group(
+                    "Edit",
+                    vec![
+                        MenuItem::item("Copy", Action::EditCopy),
+                        MenuItem::item("Cut", Action::EditCut),
+                        MenuItem::item("Paste", Action::EditPaste),
+                    ],
+                ),
+                MenuItem::group(
+                    "About",
+                    vec![
+                        MenuItem::item("Author", Action::AboutAuthor),
+                        MenuItem::item("Help", Action::AboutHelp),
+                    ],
+                ),
+            ]),
         }
     }
 }
 
 impl App {
+	pub fn new(&self){}
     pub fn on_submit<F: FnMut(msg::Msg) + 'static>(&mut self, hook: F) {
         self._on_input_enter = Some(Box::new(hook));
     }
@@ -112,13 +190,55 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
 
         if !event::poll(tick_rate)? {
             continue;
-        }
+		} else {
+
+        //for e in app.menu.drain_events() {
+        //    match e {
+        //        MenuEvent::Selected(item) => match item {
+        //            Action::Exit => {
+        //                return Ok(());
+        //            }
+        //            Action::FileNew => {
+        //                app.content.clear();
+        //            }
+        //            Action::FileOpenRecent(file) => {
+        //                app.content = format!("content of {file}");
+        //            }
+        //            action => {
+        //                app.content = format!("{action:?} not implemented");
+        //            }
+        //        },
+        //    }
+        //    app.menu.reset();
+        //}
+
+		}
 
         if let Event::Key(key) = event::read()? {
             if key.code == KeyCode::Char('c')
                 && key.modifiers.contains(event::KeyModifiers::CONTROL)
             {
                 return Ok(());
+            }
+
+            for e in app.menu.drain_events() {
+                match e {
+                    MenuEvent::Selected(item) => match item {
+                        Action::Exit => {
+                            return Ok(());
+                        }
+                        Action::FileNew => {
+                            app.content.clear();
+                        }
+                        Action::FileOpenRecent(file) => {
+                            app.content = format!("content of {file}");
+                        }
+                        action => {
+                            app.content = format!("{action:?} not implemented");
+                        }
+                    },
+                }
+                app.menu.reset();
             }
 
             match app.input_mode {
@@ -322,4 +442,8 @@ fn ui(f: &mut Frame, app: &App) {
         }
         InputMode::Command => {}
     }
+
+
+
+
 }
