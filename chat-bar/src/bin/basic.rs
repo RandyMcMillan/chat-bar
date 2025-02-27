@@ -319,7 +319,6 @@ impl App {
 
             if event::poll(tick_rate)? {
                 if let Event::Key(key) = event::read()? {
-
                     self.on_key_event(key);
 
                     match self.input_mode {
@@ -445,15 +444,13 @@ impl App {
     pub fn test_function() -> () {}
 
     fn on_key_event(&mut self, key: event::KeyEvent) {
-
-		//if !self.input_mode {
+        //if !self.input_mode {
         if key.code == KeyCode::Char('c') && key.modifiers.contains(event::KeyModifiers::CONTROL) {
             let _ = restore_terminal();
             std::process::exit(0);
         }
 
         match self.input_mode {
-
             InputMode::Normal => match key.code {
                 KeyCode::Char('h') | KeyCode::Left => self.menu.left(),
                 KeyCode::Char('l') | KeyCode::Right => self.menu.right(),
@@ -462,15 +459,13 @@ impl App {
                 KeyCode::Esc => self.menu.reset(),
                 KeyCode::Enter => self.menu.select(),
                 _ => {}
-            }
-			InputMode::Editing => match key.code {
+            },
+            InputMode::Editing => match key.code {
                 _ => {}
-
-			}
-			InputMode::Command => match key.code {
+            },
+            InputMode::Command => match key.code {
                 _ => {}
-
-			}
+            },
         }
     }
 }
@@ -483,9 +478,9 @@ impl Widget for &mut App {
             .constraints(
                 [
                     Constraint::Length(1), //0 // MENU
-                    Constraint::Fill(3), //1 // HEADER
-                    Constraint::Fill(1),   //2
-                    Constraint::Length(3), //3 //INPUT
+                    Constraint::Length(3), //1 // HEADER
+                    Constraint::Fill(1),   //2 // MESSAGE_LIST
+                    Constraint::Length(3), //3 // INPUT
                 ]
                 .as_ref(),
             )
@@ -497,14 +492,14 @@ impl Widget for &mut App {
         let header = Paragraph::new(self.content.as_str())
             .style(match self.input_mode {
                 InputMode::Normal => Style::default(),
-                InputMode::Editing => Style::default().fg(Color::Cyan),
-                InputMode::Command => Style::default().fg(Color::Yellow),
+                _ => Style::default(), //InputMode::Editing => Style::default().fg(Color::Cyan),
+                                       //InputMode::Command => Style::default().fg(Color::Yellow),
             })
             .scroll((0, scroll as u16))
             .block(Block::default().borders(Borders::ALL).title("HEADER")) //;
             .render(chunks[1], buf);
 
-        let height = chunks[1].height;
+        let height = chunks[2].height;
         let msgs = self.messages.lock().unwrap();
         let messages_vec: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
             .iter()
@@ -515,7 +510,7 @@ impl Widget for &mut App {
         let messages = Widget::render(
             List::new(messages_vec)
                 .direction(ratatui::widgets::ListDirection::BottomToTop)
-                .block(Block::default().borders(Borders::ALL)),
+                .block(Block::default().borders(Borders::ALL).title("messages_vec")),
             chunks[2],
             buf,
         );
