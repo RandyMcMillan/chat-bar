@@ -242,6 +242,10 @@ impl App {
             msgs_scroll: usize::MAX,
             menu: MenuState::new(vec![
                 MenuItem::group(
+                    "GNOSTR",
+                    vec![],
+                ),
+                MenuItem::group(
                     "File",
                     vec![
                         MenuItem::item("New", Action::FileNew),
