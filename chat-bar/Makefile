@@ -1,13 +1,17 @@
 export LIBP2P_MDNS_SERVICE_NAME = _bar._tcp.local
 
-run:
-	@echo "Running chat-bar"
-	cargo run
+chat_bar:
+	@echo "Running chat_bar"
+	cargo run --bin chat_bar
+
+nested_groups:
+	@echo "Running nested_groups"
+	cargo run --bin nested_groups
 
 build:
-	@echo "Building chat-bar"
+	@echo "Building chat_bar"
 	cargo build --release
 
 install:
-	@echo "Installing chat-bar"
+	@echo "Installing chat_bar"
 	cargo install --path .
