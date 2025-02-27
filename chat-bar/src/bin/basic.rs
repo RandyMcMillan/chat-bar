@@ -292,9 +292,8 @@ enum Action {
 }
 
 impl App {
-
     fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
-    let tick_rate = Duration::from_millis(100);
+        let tick_rate = Duration::from_millis(100);
         loop {
             terminal.draw(|frame| frame.render_widget(&mut self, frame.size()))?;
 
@@ -320,18 +319,139 @@ impl App {
                             self.content = format!("{action:?} not implemented");
                         }
                     },
-                }
+                } // match e end
                 self.menu.reset();
+            } // for e end
+
+            if event::poll(std::time::Duration::from_millis(10))? {
+                if let Event::Key(key) = event::read()? {
+                    //      self.on_key_event(key);
+                    //}
+                    //}
+                    match self.input_mode {
+                        //command prompts
+                        InputMode::Normal => match key.code {
+					//: mode
+
+
+
+
+                    KeyCode::Char(':') => {
+                        //self.input.reset(); //TODO
+                        self.msgs_scroll = self.messages.lock().unwrap().len();
+                        if !self.input.value().trim().is_empty() { //TODO
+                            let m = msg::Msg::default()
+                                .set_content(String::from(":command prompt testing..."));
+                            self.add_message(m.clone());
+                            if let Some(ref mut hook) = self._on_input_enter {
+                                hook(m);
+                            }
+						} else {
+                            let m = msg::Msg::default()
+                                .set_content(String::from("else:command prompt testing..."));
+                            self.add_message(m.clone());
+                            if let Some(ref mut hook) = self._on_input_enter {
+                                hook(m);
+                            }
+
+						}
+                        self.input.handle_event(&Event::Key(key));
+                        self.input_mode = InputMode::Command;
+                    }
+                    KeyCode::Char('>') => {
+						//> mode
+                        //self.input.reset(); //TODO
+                        self.msgs_scroll = self.messages.lock().unwrap().len();
+                        if !self.input.value().trim().is_empty() { //TODO
+                            let m = msg::Msg::default()
+                                .set_content(String::from(">command prompt testing..."));
+                            self.add_message(m.clone());
+                            if let Some(ref mut hook) = self._on_input_enter {
+                                hook(m);
+                            }
+						} else {
+                            let m = msg::Msg::default()
+                                .set_content(String::from("else>command prompt testing..."));
+                            self.add_message(m.clone());
+                            if let Some(ref mut hook) = self._on_input_enter {
+                                hook(m);
+                            }
+
+						}
+                        self.input.handle_event(&Event::Key(key));
+                        self.input_mode = InputMode::Command;
+                    }
+                    KeyCode::Char('e') | KeyCode::Char('i') => {
+                        self.input_mode = InputMode::Editing;
+                        self.msgs_scroll = usize::MAX;
+                    }
+                    KeyCode::Char('q') /*| KeyCode::Esc*/ => {
+                        return Ok(());
+                    }
+                    KeyCode::Up => {
+                        let l = self.messages.lock().unwrap().len();
+                        self.msgs_scroll = self.msgs_scroll.saturating_sub(1).min(l);
+                    }
+                    KeyCode::Down => {
+                        let l = self.messages.lock().unwrap().len();
+                        self.msgs_scroll = self.msgs_scroll.saturating_add(1).min(l);
+                    }
+					KeyCode::Enter => {
+
+
+					}
+                    _ => {
+                        //TODO command prompts
+                        //eval exec
+                        //self.input.handle_event(&Event::Key(key));
+                    }
+                },
+                        InputMode::Editing => match key.code {
+                            KeyCode::Enter => {
+                                if !self.input.value().trim().is_empty() {
+                                    let m = msg::Msg::default()
+                                        .set_content(self.input.value().to_owned());
+                                    self.add_message(m.clone());
+                                    if let Some(ref mut hook) = self._on_input_enter {
+                                        hook(m);
+                                    }
+                                }
+                                self.input.reset();
+                            }
+                            KeyCode::Esc => {
+                                self.input_mode = InputMode::Normal;
+                                self.msgs_scroll = self.messages.lock().unwrap().len();
+                            }
+                            _ => {
+                                self.input.handle_event(&Event::Key(key));
+                            }
+                        },
+                        InputMode::Command => match key.code {
+                            KeyCode::Esc => {
+                                self.input_mode = InputMode::Normal;
+                                self.msgs_scroll = self.messages.lock().unwrap().len();
+                                self.input.reset();
+                            }
+                            KeyCode::Enter => {}
+                            KeyCode::Up => {
+                                let l = self.messages.lock().unwrap().len();
+                                self.msgs_scroll = self.msgs_scroll.saturating_sub(1).min(l);
+                            }
+                            KeyCode::Down => {
+                                let l = self.messages.lock().unwrap().len();
+                                self.msgs_scroll = self.msgs_scroll.saturating_add(1).min(l);
+                            }
+                            _ => {}
+                        },
+                    }
+                }
             }
         }
     }
 
     fn on_key_event(&mut self, key: event::KeyEvent) {
-
-        if key.code == KeyCode::Char('c')
-            && key.modifiers.contains(event::KeyModifiers::CONTROL)
-        {
-			let _ = restore_terminal();
+        if key.code == KeyCode::Char('c') && key.modifiers.contains(event::KeyModifiers::CONTROL) {
+            let _ = restore_terminal();
             std::process::exit(0);
         }
 
@@ -344,9 +464,6 @@ impl App {
             KeyCode::Enter => self.menu.select(),
             _ => {}
         }
-
-
-
     }
 }
 
