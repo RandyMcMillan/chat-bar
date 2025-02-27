@@ -106,7 +106,15 @@ fn main() -> color_eyre::Result<()> {
     let mut terminal = init_terminal()?;
     let app = App::new().run(&mut terminal)?;
 
+    let mut topic = String::from(format!("{:0>64}", 0));
+
     if let Some(topic_arg) = args().nth(1) {
+
+        //app.add_message(
+        //    Msg::default()
+        //        .set_content(String::from("-------"))
+        //        .set_kind(MsgKind::Command),
+        //);
     } else {
     }
 
@@ -210,6 +218,52 @@ pub struct App {
     msgs_scroll: usize,
 }
 
+impl Default for App {
+    fn default() -> Self {
+        App {
+            content: String::new(),
+            input: Input::default(),
+            input_mode: InputMode::default(),
+            messages: Default::default(),
+            _on_input_enter: None,
+            msgs_scroll: usize::MAX,
+            menu: MenuState::new(vec![
+                MenuItem::group(
+                    "File",
+                    vec![
+                        MenuItem::item("New", Action::FileNew),
+                        MenuItem::item("Open", Action::FileOpen),
+                        MenuItem::group(
+                            "Open recent",
+                            ["file_1.txt", "file_2.txt"]
+                                .iter()
+                                .map(|&f| MenuItem::item(f, Action::FileOpenRecent(f.into())))
+                                .collect(),
+                        ),
+                        MenuItem::item("Save as", Action::FileSaveAs),
+                        MenuItem::item("Exit", Action::Exit),
+                    ],
+                ),
+                MenuItem::group(
+                    "Edit",
+                    vec![
+                        MenuItem::item("Copy", Action::EditCopy),
+                        MenuItem::item("Cut", Action::EditCut),
+                        MenuItem::item("Paste", Action::EditPaste),
+                    ],
+                ),
+                MenuItem::group(
+                    "About",
+                    vec![
+                        MenuItem::item("Author", Action::AboutAuthor),
+                        MenuItem::item("Help", Action::AboutHelp),
+                    ],
+                ),
+            ]),
+        }
+    }
+}
+
 impl App {
     pub fn on_submit<F: FnMut(msg::Msg) + 'static>(&mut self, hook: F) {
         self._on_input_enter = Some(Box::new(hook));
@@ -241,10 +295,7 @@ impl App {
             _on_input_enter: None,
             msgs_scroll: usize::MAX,
             menu: MenuState::new(vec![
-                MenuItem::group(
-                    "GNOSTR",
-                    vec![],
-                ),
+                MenuItem::group("GNOSTR", vec![]),
                 MenuItem::group(
                     "File",
                     vec![
