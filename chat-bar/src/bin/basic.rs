@@ -293,11 +293,11 @@ enum Action {
 
 impl App {
     fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
-        let tick_rate = Duration::from_millis(100);
+        let tick_rate = Duration::from_millis(1);
         loop {
             terminal.draw(|frame| frame.render_widget(&mut self, frame.size()))?;
 
-            if event::poll(std::time::Duration::from_millis(10))? {
+            if event::poll(tick_rate)? {
                 if let Event::Key(key) = event::read()? {
                     self.on_key_event(key);
                 }
@@ -323,7 +323,7 @@ impl App {
                 self.menu.reset();
             } // for e end
 
-            if event::poll(std::time::Duration::from_millis(10))? {
+            if event::poll(tick_rate)? {
                 if let Event::Key(key) = event::read()? {
                     //      self.on_key_event(key);
                     //}
