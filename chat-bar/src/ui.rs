@@ -70,26 +70,6 @@ pub struct App {
     msgs_scroll: usize,
 }
 
-impl Widget for &mut App {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        use Constraint::*;
-        let [top, main] = Layout::vertical([Length(1), Fill(1)]).areas(area);
-
-        Paragraph::new(self.content.as_str())
-            .block(Block::bordered().title("Content").on_black())
-            .render(main, buf);
-
-        "tui-menu"
-            .bold()
-            .blue()
-            .into_centered_line()
-            .render(top, buf);
-
-        // draw menu last, so it renders on top of other content
-        Menu::new().render(top, buf, &mut self.menu);
-    }
-}
-
 impl Default for App {
     fn default() -> Self {
         App {
@@ -356,24 +336,85 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
     }
 }
 
+struct MyWidget;
+
+impl Widget for MyWidget {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        Line::raw("MyWidget:Hello").render(area, buf);
+
+
+        let mut state = MenuState::<&'static str>::new(vec![
+            MenuItem::item("Foo", "label_foo"),
+            MenuItem::group("Group", vec![
+                MenuItem::item("Bar 1", "label_bar_1"),
+                MenuItem::item("Bar 2", "label_bar_1"),
+            ])
+        ]);
+	    state.activate();
+
+
+	    Menu::new().render(area, buf, &mut state);
+
+
+    }
+}
+
+struct MenuWidget {
+	content: String,
+	state: MenuState::<&'static str>,
+}
+
+impl Widget for MenuWidget {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        use Constraint::*;
+        let [top, main] = Layout::vertical([Length(10), Fill(1)]).areas(area);
+
+
+        let mut state = MenuState::<&'static str>::new(vec![
+            MenuItem::item("Foo", "label_foo"),
+            MenuItem::group("Group", vec![
+                MenuItem::item("Bar 1", "label_bar_1"),
+                MenuItem::item("Bar 2", "label_bar_1"),
+            ])
+        ]);
+
+        let content = Line::raw("MenuWidget:Hello").render(area, buf);
+        Paragraph::new(self.content.as_str())
+            .block(Block::bordered().title("Content").on_black())
+            .render(main, buf);
+
+        "tui-menu"
+            .bold()
+            .blue()
+            .into_centered_line()
+            .render(top, buf);
+
+        // draw menu last, so it renders on top of other content
+        Menu::new().render(top, buf, &mut state);
+    }
+}
+
+
+
 fn ui(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         // .margin(2)
         .constraints(
             [
-                Constraint::Length(7),
-                Constraint::Fill(5),
-                Constraint::Length(3),
+                Constraint::Length(7), //0
+                Constraint::Fill(5),   //1
+                Constraint::Length(3), //2
             ]
             .as_ref(),
         )
         .split(f.size());
 
-    let width = chunks[1].width.max(3) - 3; // keep 2 for borders and 1 for cursor
-
+    let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
     let scroll = app.input.visual_scroll(width as usize);
 
+	let rect = Rect::new(10, 10, chunks[0].width.max(10), chunks[0].height.max(10));
+	let mut buffer = Buffer::empty(rect);
     //HEADER
     //let input = Paragraph::new(app.input.value())
     let header = Paragraph::new("")
@@ -384,24 +425,25 @@ fn ui(f: &mut Frame, app: &App) {
         })
         .scroll((0, scroll as u16))
         .block(Block::default().borders(Borders::ALL).title("HEADER"));
-    f.render_widget(header, chunks[0]);
+	//f.render_widget(header, chunks[0]);
+
+	let my_widget = MyWidget;
+	f.render_widget(my_widget, chunks[0]);
+
+    //let mut state = MenuState::<&'static str>::new(vec![
+    //    MenuItem::item("Foo", "label_foo"),
+    //    MenuItem::group("Group", vec![
+    //        MenuItem::item("Bar 1", "label_bar_1"),
+    //        MenuItem::item("Bar 2", "label_bar_1"),
+    //    ])
+    //]);
+	//state.activate();
+
+
+	//let menu = Menu::new().render(rect, &mut buffer, &mut state);
+	//f.render_widget(menu, chunks[0]);
+
     //HEADER END
-
-    //match app.input_mode {
-    //    InputMode::Normal =>
-    //        // Hide the cursor. `Frame` does this by default, so we don't need to do anything here
-    //        {}
-
-    //    InputMode::Editing => {
-    //        // Make the cursor visible and ask tui-rs to put it at the specified coordinates after rendering
-    //        f.set_cursor(
-    //            // Put cursor past the end of the input text
-    //            chunks[1].x + ((app.input.visual_cursor()).max(scroll) - scroll) as u16 + 1,
-    //            // Move one line down, from the border to the input line
-    //            chunks[1].y + 1,
-    //        )
-    //    }
-    //}
 
     let height = chunks[1].height;
     let msgs = app.messages.lock().unwrap();
@@ -443,7 +485,13 @@ fn ui(f: &mut Frame, app: &App) {
         InputMode::Command => {}
     }
 
+    //    "tui-menu"
+    //        .bold()
+    //        .blue()
+    //        .into_centered_line()
+    //        .render(chunks[0], &mut buffer);
 
 
+    //let _ = Menu::new().render(chunks[0], &mut buffer, &mut state);
 
 }
