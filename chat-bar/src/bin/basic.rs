@@ -104,7 +104,7 @@ fn main() -> color_eyre::Result<()> {
     let mut topic = String::from(format!("{:0>64}", 0));
 
     let mut terminal = init_terminal()?;
-    let app = App::new().run(&mut terminal)?;
+    let app = App::default().run(&mut terminal)?;
 
     let mut topic = String::from(format!("{:0>64}", 0));
 
