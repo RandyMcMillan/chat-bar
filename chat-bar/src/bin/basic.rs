@@ -25,7 +25,7 @@ use p2p::evt_loop;
 use color_eyre::config::HookBuilder;
 use ratatui::{
     crossterm::{
-        event::{self, Event, KeyCode},
+        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
         execute,
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
@@ -104,19 +104,99 @@ fn main() -> color_eyre::Result<()> {
     let mut topic = String::from(format!("{:0>64}", 0));
 
     let mut terminal = init_terminal()?;
-    let app = App::default().run(&mut terminal)?;
+    //let app = App::default().run(&mut terminal)?;
+    let mut app = App::default();
 
     let mut topic = String::from(format!("{:0>64}", 0));
 
     if let Some(topic_arg) = args().nth(1) {
 
-        //app.add_message(
-        //    Msg::default()
-        //        .set_content(String::from("-------"))
-        //        .set_kind(MsgKind::Command),
-        //);
+        app.add_message(
+            Msg::default()
+                .set_content(String::from("-------"))
+                .set_kind(MsgKind::Command),
+        );
+
+		topic = String::from(format!("\n\n{}", topic_arg));
+        app.add_message(
+            Msg::default()
+                .set_content(topic.clone())
+                .set_kind(MsgKind::Raw),
+        );
+
     } else {
+        app.add_message(
+            Msg::default()
+                .set_content(String::from("-------"))
+                .set_kind(MsgKind::Command),
+        );
+
+        //push commit body
+        for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+            app.add_message(
+                Msg::default()
+                    .set_content(line.to_string())
+                    .set_kind(MsgKind::System),
+            );
+        }
+        app.add_message(
+            Msg::default()
+                .set_content(String::from("-------"))
+                .set_kind(MsgKind::Command),
+        );
+
+        //commit.id is padded to fit sha256/nostr privkey context
+        topic = String::from(format!("TOPIC> {} {}", commit.id(), commit_summary));
+
+        app.add_message(
+            Msg::default()
+                .set_content(topic.clone())
+                .set_kind(MsgKind::Command),
+        );
+
+        debug!("{}", topic);
+
+
     }
+
+
+    let (peer_tx, mut peer_rx) = tokio::sync::mpsc::channel::<Msg>(100);
+    let (input_tx, input_rx) = tokio::sync::mpsc::channel::<Msg>(100);
+
+    // let input_loop_fut = input_loop(input_tx);
+    let input_tx_clone = input_tx.clone();
+    app.on_submit(move |m| {
+        debug!("sent: {:?}", m);
+        input_tx_clone.blocking_send(m).unwrap();
+    });
+
+    let topic = gossipsub::IdentTopic::new(format!("{}", topic));
+    global_rt().spawn(async move {
+        evt_loop(input_rx, peer_tx, topic).await.unwrap();
+    });
+
+    // recv from peer
+    let mut tui_msg_adder = app.add_msg_fn();
+    global_rt().spawn(async move {
+        while let Some(m) = peer_rx.recv().await {
+            debug!("recv: {:?}", m);
+            tui_msg_adder(m);
+        }
+    });
+
+    // say hi
+    let input_tx_clone = input_tx.clone();
+    global_rt().spawn(async move {
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        input_tx_clone
+            .send(Msg::default().set_kind(MsgKind::Join))
+            .await
+            .unwrap();
+    });
+
+
+	app.run(&mut terminal)?;
+
 
     restore_terminal()?;
     Ok(())
@@ -287,50 +367,30 @@ impl App {
         })
     }
 
-    fn new() -> Self {
-        Self {
-            content: String::new(),
-            input: Input::default(),
-            input_mode: InputMode::default(),
-            messages: Default::default(),
-            _on_input_enter: None,
-            msgs_scroll: usize::MAX,
-            menu: MenuState::new(vec![
-                MenuItem::group("GNOSTR", vec![]),
-                MenuItem::group(
-                    "File",
-                    vec![
-                        MenuItem::item("New", Action::FileNew),
-                        MenuItem::item("Open", Action::FileOpen),
-                        MenuItem::group(
-                            "Open recent",
-                            ["file_1.txt", "file_2.txt"]
-                                .iter()
-                                .map(|&f| MenuItem::item(f, Action::FileOpenRecent(f.into())))
-                                .collect(),
-                        ),
-                        MenuItem::item("Save as", Action::FileSaveAs),
-                        MenuItem::item("Exit", Action::Exit),
-                    ],
-                ),
-                MenuItem::group(
-                    "Edit",
-                    vec![
-                        MenuItem::item("Copy", Action::EditCopy),
-                        MenuItem::item("Cut", Action::EditCut),
-                        MenuItem::item("Paste", Action::EditPaste),
-                    ],
-                ),
-                MenuItem::group(
-                    "About",
-                    vec![
-                        MenuItem::item("Author", Action::AboutAuthor),
-                        MenuItem::item("Help", Action::AboutHelp),
-                    ],
-                ),
-            ]),
-        }
-    }
+    //pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    //    // setup terminal
+    //    enable_raw_mode()?;
+    //    let mut stdout = io::stdout();
+    //    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    //    let backend = CrosstermBackend::new(stdout);
+    //    let mut terminal = Terminal::new(backend)?;
+
+    //    // run app
+    //    run_app(&mut terminal, self)?;
+
+    //    // restore terminal
+    //    disable_raw_mode()?;
+    //    execute!(
+    //        terminal.backend_mut(),
+    //        LeaveAlternateScreen,
+    //        DisableMouseCapture
+    //    )?;
+    //    terminal.show_cursor()?;
+
+    //    Ok(())
+    //}
+
+
 }
 
 #[derive(Debug, Clone)]
@@ -349,6 +409,17 @@ enum Action {
 
 impl App {
     fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
+
+
+        enable_raw_mode()?;
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        let backend = CrosstermBackend::new(stdout);
+        let mut terminal = Terminal::new(backend)?;
+
+        // run app
+        //run_app(&mut terminal, self)?;
+
         let tick_rate = Duration::from_millis(10);
         loop {
             terminal.draw(|frame| frame.render_widget(&mut self, frame.size()))?;
