@@ -110,20 +110,18 @@ fn main() -> color_eyre::Result<()> {
     let mut topic = String::from(format!("{:0>64}", 0));
 
     if let Some(topic_arg) = args().nth(1) {
-
         app.add_message(
             Msg::default()
                 .set_content(String::from("-------"))
                 .set_kind(MsgKind::Command),
         );
 
-		topic = String::from(format!("\n\n{}", topic_arg));
+        topic = String::from(format!("\n\n{}", topic_arg));
         app.add_message(
             Msg::default()
                 .set_content(topic.clone())
                 .set_kind(MsgKind::Raw),
         );
-
     } else {
         app.add_message(
             Msg::default()
@@ -155,10 +153,7 @@ fn main() -> color_eyre::Result<()> {
         );
 
         debug!("{}", topic);
-
-
     }
-
 
     let (peer_tx, mut peer_rx) = tokio::sync::mpsc::channel::<Msg>(100);
     let (input_tx, input_rx) = tokio::sync::mpsc::channel::<Msg>(100);
@@ -194,10 +189,20 @@ fn main() -> color_eyre::Result<()> {
             .unwrap();
     });
 
+    app.run(&mut terminal)?;
 
-	app.run(&mut terminal)?;
+    // say goodbye
+    input_tx.blocking_send(Msg::default().set_kind(MsgKind::Leave))?;
+    std::thread::sleep(Duration::from_millis(500));
 
-
+    // restore terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
     restore_terminal()?;
     Ok(())
 }
@@ -308,7 +313,7 @@ impl Default for App {
             _on_input_enter: None,
             msgs_scroll: usize::MAX,
             menu: MenuState::new(vec![
-                MenuItem::group("Gnostr", vec![]),
+                MenuItem::item("gnostr>", Action::Home),
                 MenuItem::group(
                     "File",
                     vec![
@@ -389,12 +394,11 @@ impl App {
 
     //    Ok(())
     //}
-
-
 }
 
 #[derive(Debug, Clone)]
 enum Action {
+    Home,
     FileNew,
     FileOpen,
     FileOpenRecent(String),
@@ -409,8 +413,6 @@ enum Action {
 
 impl App {
     fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
-
-
         enable_raw_mode()?;
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -427,6 +429,9 @@ impl App {
             for e in self.menu.drain_events() {
                 match e {
                     MenuEvent::Selected(item) => match item {
+                        Action::Home => {
+                            self.content = format!("Welcome to Gnostr Chat");
+                        }
                         Action::Exit => {
                             return Ok(());
                         }
