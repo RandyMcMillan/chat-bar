@@ -379,81 +379,77 @@ impl App {
                     match self.input_mode {
                         //command prompts
                         InputMode::Normal => match key.code {
-					//: mode
+				    	    //: mode
+                            KeyCode::Char(':') => {
+                                //self.input.reset(); //TODO
+                                self.msgs_scroll = self.messages.lock().unwrap().len();
+                                if !self.input.value().trim().is_empty() { //TODO
+                                    let m = msg::Msg::default()
+                                        .set_content(String::from(":command prompt testing..."));
+                                    self.add_message(m.clone());
+                                    if let Some(ref mut hook) = self._on_input_enter {
+                                        hook(m);
+                                    }
+				    	    	} else {
+                                    let m = msg::Msg::default()
+                                        .set_content(String::from("else:command prompt testing..."));
+                                    self.add_message(m.clone());
+                                    if let Some(ref mut hook) = self._on_input_enter {
+                                        hook(m);
+                                    }
 
-
-
-
-                    KeyCode::Char(':') => {
-                        //self.input.reset(); //TODO
-                        self.msgs_scroll = self.messages.lock().unwrap().len();
-                        if !self.input.value().trim().is_empty() { //TODO
-                            let m = msg::Msg::default()
-                                .set_content(String::from(":command prompt testing..."));
-                            self.add_message(m.clone());
-                            if let Some(ref mut hook) = self._on_input_enter {
-                                hook(m);
+				    	    	}
+                                self.input.handle_event(&Event::Key(key));
+                                self.input_mode = InputMode::Command;
                             }
-						} else {
-                            let m = msg::Msg::default()
-                                .set_content(String::from("else:command prompt testing..."));
-                            self.add_message(m.clone());
-                            if let Some(ref mut hook) = self._on_input_enter {
-                                hook(m);
+                            KeyCode::Char('>') => {
+				    	    	//> mode
+                                //self.input.reset(); //TODO
+                                self.msgs_scroll = self.messages.lock().unwrap().len();
+                                if !self.input.value().trim().is_empty() { //TODO
+                                    let m = msg::Msg::default()
+                                        .set_content(String::from(">command prompt testing..."));
+                                    self.add_message(m.clone());
+                                    if let Some(ref mut hook) = self._on_input_enter {
+                                        hook(m);
+                                    }
+				    	    	} else {
+                                    let m = msg::Msg::default()
+                                        .set_content(String::from("else>command prompt testing..."));
+                                    self.add_message(m.clone());
+                                    if let Some(ref mut hook) = self._on_input_enter {
+                                        hook(m);
+                                    }
+
+				    	    	}
+                                self.input.handle_event(&Event::Key(key));
+                                self.input_mode = InputMode::Command;
                             }
-
-						}
-                        self.input.handle_event(&Event::Key(key));
-                        self.input_mode = InputMode::Command;
-                    }
-                    KeyCode::Char('>') => {
-						//> mode
-                        //self.input.reset(); //TODO
-                        self.msgs_scroll = self.messages.lock().unwrap().len();
-                        if !self.input.value().trim().is_empty() { //TODO
-                            let m = msg::Msg::default()
-                                .set_content(String::from(">command prompt testing..."));
-                            self.add_message(m.clone());
-                            if let Some(ref mut hook) = self._on_input_enter {
-                                hook(m);
+                            KeyCode::Char('e') | KeyCode::Char('i') => {
+                                self.input_mode = InputMode::Editing;
+                                self.msgs_scroll = usize::MAX;
                             }
-						} else {
-                            let m = msg::Msg::default()
-                                .set_content(String::from("else>command prompt testing..."));
-                            self.add_message(m.clone());
-                            if let Some(ref mut hook) = self._on_input_enter {
-                                hook(m);
+                            KeyCode::Char('q') /*| KeyCode::Esc*/ => {
+                                return Ok(());
                             }
-
-						}
-                        self.input.handle_event(&Event::Key(key));
-                        self.input_mode = InputMode::Command;
-                    }
-                    KeyCode::Char('e') | KeyCode::Char('i') => {
-                        self.input_mode = InputMode::Editing;
-                        self.msgs_scroll = usize::MAX;
-                    }
-                    KeyCode::Char('q') /*| KeyCode::Esc*/ => {
-                        return Ok(());
-                    }
-                    KeyCode::Up => {
-                        let l = self.messages.lock().unwrap().len();
-                        self.msgs_scroll = self.msgs_scroll.saturating_sub(1).min(l);
-                    }
-                    KeyCode::Down => {
-                        let l = self.messages.lock().unwrap().len();
-                        self.msgs_scroll = self.msgs_scroll.saturating_add(1).min(l);
-                    }
-					KeyCode::Enter => {
+                            KeyCode::Up => {
+                                let l = self.messages.lock().unwrap().len();
+                                self.msgs_scroll = self.msgs_scroll.saturating_sub(1).min(l);
+                            }
+                            KeyCode::Down => {
+                                let l = self.messages.lock().unwrap().len();
+                                self.msgs_scroll = self.msgs_scroll.saturating_add(1).min(l);
+                            }
+				    	    KeyCode::Enter => {
 
 
-					}
-                    _ => {
-                        //TODO command prompts
-                        //eval exec
-                        //self.input.handle_event(&Event::Key(key));
-                    }
-                },
+				    	    }
+                            _ => {
+                                //TODO command prompts
+                                //eval exec
+                                //self.input.handle_event(&Event::Key(key));
+                            }
+                        },
                         InputMode::Editing => match key.code {
                             KeyCode::Enter => {
                                 if !self.input.value().trim().is_empty() {
