@@ -228,6 +228,7 @@ impl Default for App {
             _on_input_enter: None,
             msgs_scroll: usize::MAX,
             menu: MenuState::new(vec![
+                MenuItem::group("Gnostr", vec![]),
                 MenuItem::group(
                     "File",
                     vec![
