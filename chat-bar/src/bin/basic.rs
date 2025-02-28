@@ -399,7 +399,7 @@ impl App {
                                     }
 
 				    	    	}
-                                self.input.handle_event(&Event::Key(key));
+                                //self.input.handle_event(&Event::Key(key));
                                 self.input_mode = InputMode::Command;
                             }
                             KeyCode::Char('>') => {
@@ -422,7 +422,7 @@ impl App {
                                     }
 
 				    	    	}
-                                self.input.handle_event(&Event::Key(key));
+                                //self.input.handle_event(&Event::Key(key));
                                 self.input_mode = InputMode::Command;
                             }
                             KeyCode::Char('e') | KeyCode::Char('i') => {
@@ -573,7 +573,7 @@ impl Widget for &mut App {
                 InputMode::Command => Style::default().fg(Color::Yellow),
             })
             .scroll((0, scroll as u16))
-            .block(Block::default().borders(Borders::ALL).title("Input2")) //;
+            .block(Block::default().borders(Borders::ALL).title("Input2"))
             .render(chunks[3], buf);
 
         // draw menu last, so it renders on top of other content
