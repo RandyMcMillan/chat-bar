@@ -226,20 +226,20 @@ fn main() -> color_eyre::Result<()> {
     let head = repo.head()?;
 
     // Print the name of HEAD (e.g., "refs/heads/main" or "HEAD")
-    println!("HEAD: {}", head.name().unwrap_or("HEAD"));
+    //println!("HEAD: {}", head.name().unwrap_or("HEAD"));
 
     // Get the commit object that HEAD points to
     let commit = head.peel_to_commit()?;
 
     // Print the commit ID (SHA-1 hash)
-    println!("Commit ID: {}", commit.id());
-    println!("Commit Summary: {:?}", commit.summary());
+    //println!("Commit ID: {}", commit.id());
+    //println!("Commit Summary: {:?}", commit.summary());
 
-    // Optionally, print other commit information
-    println!(
-        "Commit message: {}",
-        commit.message().unwrap_or("No message")
-    );
+    //// Optionally, print other commit information
+    //println!(
+    //    "Commit message: {}",
+    //    commit.message().unwrap_or("No message")
+    //);
 
     let mut char_vec: Vec<char> = Vec::new();
     for line in commit.summary().unwrap_or("HEAD").chars() {
@@ -247,20 +247,20 @@ fn main() -> color_eyre::Result<()> {
     }
     char_vec.push(' ');
     let commit_summary = collect_chars_to_string(&char_vec);
-    println!("commit_summary:\n\n{}\n\n", commit_summary);
+    //println!("commit_summary:\n\n{}\n\n", commit_summary);
     let mut commit_message: Vec<String> = Vec::new();
     //commit_message.push(String::from(""));
     for line in commit.body() {
         commit_message.push(String::from(line));
     }
     //let commit_message = collect_chars_to_string(&char_vec);
-    println!("commit_message:\n\n{:?}\n\n", commit_message);
+    //println!("commit_message:\n\n{:?}\n\n", commit_message);
 
     //let chunks = split_into_chunks(commit_message, 2);
     // println!("{:?}", chunks); // Output: [["a
 
     let commit_message = split_strings_in_vec(commit_message.clone(), '\n');
-    println!("{:?}", commit_message);
+    //println!("{:?}", commit_message);
 
     //std::process::exit(0);
 
@@ -335,9 +335,9 @@ fn main() -> color_eyre::Result<()> {
     //        .set_kind(MsgKind::Command),
     //);
 
-    debug!("{}", topic);
+    //debug!("{}", topic);
     let topic = gossipsub::IdentTopic::new(format!("{}", topic));
-    debug!("{}", topic);
+    //debug!("{}", topic);
     global_rt().spawn(async move {
         evt_loop(input_rx, peer_tx, topic).await.unwrap();
     });
