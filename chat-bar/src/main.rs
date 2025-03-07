@@ -42,7 +42,7 @@ use ratatui::{
     prelude::{Backend, Buffer, CrosstermBackend, Rect, StatefulWidget, Terminal, Widget},
     style::{Color, Style},
     text::Line,
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
 };
 use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
 
@@ -258,8 +258,8 @@ fn main() -> color_eyre::Result<()> {
     //let chunks = split_into_chunks(commit_message, 2);
     // println!("{:?}", chunks); // Output: [["a
 
-    let split_vec = split_strings_in_vec(commit_message.clone(), '\n');
-    println!("{:?}", split_vec);
+    let commit_message = split_strings_in_vec(commit_message.clone(), '\n');
+    println!("{:?}", commit_message);
 
     //std::process::exit(0);
 
@@ -319,13 +319,13 @@ fn main() -> color_eyre::Result<()> {
                 .set_content(topic.clone())
                 .set_kind(MsgKind::Raw),
         );
-        //for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+        for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
         app.add_message(
             Msg::default()
-                .set_content(format!("{:?}", commit_message.clone()))
+                .set_content(format!("{}", line))
                 .set_kind(MsgKind::Raw),
         );
-        //}
+        }
     }
 
     //app.add_message(
@@ -834,6 +834,7 @@ impl Widget for &mut App {
             })
             .scroll((0, scroll as u16))
             .block(Block::default().borders(Borders::ALL).title("Input2"))
+			.wrap(Wrap { trim: true })
             .render(chunks[3], buf);
 
         // draw menu last, so it renders on top of other content
