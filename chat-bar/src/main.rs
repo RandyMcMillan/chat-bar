@@ -163,13 +163,13 @@ fn main() -> color_eyre::Result<()> {
                 .set_content(topic.clone())
                 .set_kind(MsgKind::Raw),
         );
-        for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+        //for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
             app.add_message(
                 Msg::default()
-                    .set_content(line.to_string())
+                    .set_content(commit_summary.clone())
                     .set_kind(MsgKind::Raw),
             );
-        }
+        //}
     }
 
     //app.add_message(
@@ -473,7 +473,7 @@ impl App {
                     match self.input_mode {
                         //command prompts
                         InputMode::Normal => match key.code {
-				    	    //: mode
+                            //: mode
                             KeyCode::Char(':') => {
                                 //self.input.reset(); //TODO
                                 self.msgs_scroll = self.messages.lock().unwrap().len();
@@ -484,7 +484,7 @@ impl App {
                                     if let Some(ref mut hook) = self._on_input_enter {
                                         hook(m);
                                     }
-				    	    	} else {
+                                } else {
                                     let m = msg::Msg::default()
                                         .set_content(String::from("else:command prompt testing..."));
                                     self.add_message(m.clone());
@@ -492,12 +492,12 @@ impl App {
                                         hook(m);
                                     }
 
-				    	    	}
+                                }
                                 //self.input.handle_event(&Event::Key(key));
                                 self.input_mode = InputMode::Command;
                             }
                             KeyCode::Char('>') => {
-				    	    	//> mode
+                                //> mode
                                 //self.input.reset(); //TODO
                                 self.msgs_scroll = self.messages.lock().unwrap().len();
                                 if !self.input.value().trim().is_empty() { //TODO
@@ -507,7 +507,7 @@ impl App {
                                     if let Some(ref mut hook) = self._on_input_enter {
                                         hook(m);
                                     }
-				    	    	} else {
+                                } else {
                                     let m = msg::Msg::default()
                                         .set_content(String::from("else>command prompt testing..."));
                                     self.add_message(m.clone());
@@ -515,7 +515,7 @@ impl App {
                                         hook(m);
                                     }
 
-				    	    	}
+                             }
                                 //self.input.handle_event(&Event::Key(key));
                                 self.input_mode = InputMode::Command;
                             }
@@ -534,14 +534,23 @@ impl App {
                                 let l = self.messages.lock().unwrap().len();
                                 self.msgs_scroll = self.msgs_scroll.saturating_add(1).min(l);
                             }
-				    	    KeyCode::Enter => {
+                            KeyCode::Enter => {
 
+                                self.msgs_scroll = usize::MAX;
+
+                            }
+                            KeyCode::Esc => {
+
+                                self.msgs_scroll = usize::MAX;
+                                self.msgs_scroll = usize::MAX;
+                                self.input.reset();
 
 				    	    }
                             _ => {
                                 //TODO command prompts
                                 //eval exec
                                 //self.input.handle_event(&Event::Key(key));
+                                self.msgs_scroll = usize::MAX;
                             }
                         },
                         InputMode::Editing => match key.code {
@@ -559,6 +568,7 @@ impl App {
                             KeyCode::Esc => {
                                 self.input_mode = InputMode::Normal;
                                 self.msgs_scroll = self.messages.lock().unwrap().len();
+                                self.msgs_scroll = usize::MAX;
                             }
                             _ => {
                                 self.input.handle_event(&Event::Key(key));
