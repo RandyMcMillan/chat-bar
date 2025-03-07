@@ -1,9 +1,22 @@
+use tracing::warn;
+use futures::stream::StreamExt;
+use libp2p::{gossipsub, mdns, noise, swarm::NetworkBehaviour, swarm::SwarmEvent, tcp, yamux};
+use std::error::Error;
+use tokio::{select, task};
+use ureq::Agent;
+
+use git2::Config;
+//use crate::gossipsub::Config;
+//use libp2p::gossipsub::Behaviour;
+//use libp2p::mdns::tokio::Behaviour;
+use once_cell::sync::Lazy;
+use std::fmt::Display;
 use env_logger::{Builder, Env};
 use git2::Commit;
 use git2::Repository;
 use git2::Time;
-use libp2p::gossipsub;
 use once_cell::sync::OnceCell;
+use serde::{Serialize, Deserialize};
 use std::{
     env,
     env::args as env_args,
@@ -14,11 +27,7 @@ use std::{
 
 use tracing::{debug, trace};
 
-use chat_bar::msg;
-use chat_bar::msg::Msg;
-use chat_bar::msg::MsgKind;
-use chat_bar::p2p::evt_loop;
-use clap::parser::ValueSource;
+//use clap::parser::ValueSource;
 use clap::{Arg, ArgAction, ArgMatches, Command, Parser, Subcommand};
 
 use color_eyre::config::HookBuilder;
@@ -39,6 +48,129 @@ use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
 
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
+
+
+pub(crate) static USER_NAME: Lazy<String> = Lazy::new(|| {
+    format!(
+        "{}",
+        std::env::var("USER")
+            .unwrap_or_else(|_| hostname::get().unwrap().to_string_lossy().to_string()),
+    )
+});
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Default)]
+pub enum MsgKind {
+    #[default]
+    Chat,
+    Join,
+    Leave,
+    System,
+    Raw,
+    Command,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Msg {
+    pub from: String,
+    pub content: String,
+    pub kind: MsgKind,
+}
+
+impl Default for Msg {
+    fn default() -> Self {
+        Self {
+            from: USER_NAME.clone(),
+            content: "".to_string(),
+            kind: MsgKind::Chat,
+        }
+    }
+}
+
+impl Msg {
+    pub fn set_kind(mut self, kind: MsgKind) -> Self {
+        self.kind = kind;
+        self
+    }
+
+    pub fn set_content(mut self, content: String) -> Self {
+        self.content = content;
+        self
+    }
+}
+
+impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
+    fn from(m: &'a Msg) -> Self {
+        use ratatui::style::{Color, Modifier, Style};
+        use ratatui::text::{Line, Span};
+        use MsgKind::*;
+
+        fn gen_color_by_hash(s: &str) -> Color {
+            static LIGHT_COLORS: [Color; 5] = [
+                Color::LightMagenta,
+                Color::LightGreen,
+                Color::LightYellow,
+                Color::LightBlue,
+                Color::LightCyan,
+                // Color::White,
+            ];
+            let h = s.bytes().fold(0, |acc, b| acc ^ b as usize);
+            return LIGHT_COLORS[h % LIGHT_COLORS.len()];
+        }
+
+        match m.kind {
+            Join | Leave | System => Line::from(Span::styled(
+                m.to_string(),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )),
+            Chat => {
+                if m.from == *USER_NAME {
+                    Line::default().spans(vec![
+                        Span::styled(
+                            format!("{}{} ", &m.from, ">"),
+                            Style::default().fg(gen_color_by_hash(&m.from)),
+                        ),
+                        m.content.clone().into(),
+                    ])
+                } else {
+                    Line::default().spans(vec![
+                        m.content.clone().into(),
+                        Span::styled(
+                            format!(" {}{}", "<", &m.from),
+                            Style::default().fg(gen_color_by_hash(&m.from)),
+                        ),
+                    ])
+                }
+            }
+            Raw => m.content.clone().into(),
+            Command => Line::default().spans(vec![
+                Span::styled(
+                    format!("Command: {}{} ", &m.from, ">"),
+                    Style::default()
+                        .fg(gen_color_by_hash(&m.from))
+                        .add_modifier(Modifier::ITALIC),
+                ),
+                m.content.clone().into(),
+            ]),
+        }
+    }
+}
+
+impl Display for Msg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            MsgKind::Join => write!(f, "{} join", self.from),
+            MsgKind::Leave => write!(f, "{} left", self.from),
+            MsgKind::Chat => write!(f, "{}: {}", self.from, self.content),
+            MsgKind::System => write!(f, "[System] {}", self.content),
+            MsgKind::Raw => write!(f, "{}", self.content),
+            MsgKind::Command => write!(f, "[Command] {}:{}", self.from, self.content),
+        }
+    }
+}
+
+
 
 #[derive(Default)]
 enum InputMode {
@@ -73,6 +205,18 @@ fn get_repo() -> color_eyre::Result<Repository> {
     Ok(Repository::discover(".")?)
 }
 
+fn split_strings_in_vec(vec: Vec<String>, delimiter: char) -> Vec<Vec<String>> {
+    vec.into_iter()
+        .map(|s| s.split(delimiter).map(|s| s.to_string()).collect())
+        .collect()
+}
+
+fn split_into_chunks(vec: Vec<String>, chunk_size: usize) -> Vec<Vec<String>> {
+    vec.chunks(chunk_size)
+        .map(|chunk| chunk.to_vec())
+        .collect()
+}
+
 fn main() -> color_eyre::Result<()> {
     //App
     let mut terminal = init_terminal()?;
@@ -86,17 +230,17 @@ fn main() -> color_eyre::Result<()> {
     let head = repo.head()?;
 
     // Print the name of HEAD (e.g., "refs/heads/main" or "HEAD")
-    debug!("HEAD: {}", head.name().unwrap_or("HEAD"));
+    println!("HEAD: {}", head.name().unwrap_or("HEAD"));
 
     // Get the commit object that HEAD points to
     let commit = head.peel_to_commit()?;
 
     // Print the commit ID (SHA-1 hash)
-    debug!("Commit ID: {}", commit.id());
-    debug!("Commit Summary: {:?}", commit.summary());
+    println!("Commit ID: {}", commit.id());
+    println!("Commit Summary: {:?}", commit.summary());
 
     // Optionally, print other commit information
-    debug!(
+    println!(
         "Commit message: {}",
         commit.message().unwrap_or("No message")
     );
@@ -107,14 +251,25 @@ fn main() -> color_eyre::Result<()> {
     }
     char_vec.push(' ');
     let commit_summary = collect_chars_to_string(&char_vec);
-    debug!("commit_summary:\n\n{}\n\n", commit_summary);
+    println!("commit_summary:\n\n{}\n\n", commit_summary);
     let mut commit_message: Vec<String> = Vec::new();
     //commit_message.push(String::from(""));
     for line in commit.body() {
         commit_message.push(String::from(line));
     }
     //let commit_message = collect_chars_to_string(&char_vec);
-    debug!("commit_message:\n\n{:?}\n\n", commit_message);
+    println!("commit_message:\n\n{:?}\n\n", commit_message);
+
+
+   //let chunks = split_into_chunks(commit_message, 2);
+   // println!("{:?}", chunks); // Output: [["a
+
+    let split_vec = split_strings_in_vec(commit_message, '\n');
+    println!("{:?}", split_vec);
+
+
+	std::process::exit(0);
+
 
     //env
     let args_vec: Vec<String> = env_args().collect();
@@ -323,9 +478,9 @@ pub struct App {
     /// Current input mode
     input_mode: InputMode,
     /// History of recorded messages
-    messages: Arc<Mutex<Vec<msg::Msg>>>,
+    messages: Arc<Mutex<Vec<Msg>>>,
     menu: MenuState<Action>,
-    _on_input_enter: Option<Box<dyn FnMut(msg::Msg)>>,
+    _on_input_enter: Option<Box<dyn FnMut(Msg)>>,
     msgs_scroll: usize,
 }
 
@@ -377,20 +532,20 @@ impl Default for App {
 }
 
 impl App {
-    pub fn on_submit<F: FnMut(msg::Msg) + 'static>(&mut self, hook: F) {
+    pub fn on_submit<F: FnMut(Msg) + 'static>(&mut self, hook: F) {
         self._on_input_enter = Some(Box::new(hook));
     }
 
-    pub fn add_message(&self, msg: msg::Msg) {
+    pub fn add_message(&self, msg: Msg) {
         let mut msgs = self.messages.lock().unwrap();
         Self::add_msg(&mut msgs, msg);
     }
 
-    fn add_msg(msgs: &mut Vec<msg::Msg>, msg: msg::Msg) {
+    fn add_msg(msgs: &mut Vec<Msg>, msg: Msg) {
         msgs.push(msg);
     }
 
-    pub fn add_msg_fn(&self) -> Box<dyn FnMut(msg::Msg) + 'static + Send> {
+    pub fn add_msg_fn(&self) -> Box<dyn FnMut(Msg) + 'static + Send> {
         let m = self.messages.clone();
         Box::new(move |msg| {
             let mut msgs = m.lock().unwrap();
@@ -487,14 +642,14 @@ impl App {
                                 //self.input.reset(); //TODO
                                 self.msgs_scroll = self.messages.lock().unwrap().len();
                                 if !self.input.value().trim().is_empty() { //TODO
-                                    let m = msg::Msg::default()
+                                    let m = Msg::default()
                                         .set_content(String::from(":command prompt testing..."));
                                     self.add_message(m.clone());
                                     if let Some(ref mut hook) = self._on_input_enter {
                                         hook(m);
                                     }
                                 } else {
-                                    let m = msg::Msg::default()
+                                    let m = Msg::default()
                                         .set_content(String::from("else:command prompt testing..."));
                                     self.add_message(m.clone());
                                     if let Some(ref mut hook) = self._on_input_enter {
@@ -510,14 +665,14 @@ impl App {
                                 //self.input.reset(); //TODO
                                 self.msgs_scroll = self.messages.lock().unwrap().len();
                                 if !self.input.value().trim().is_empty() { //TODO
-                                    let m = msg::Msg::default()
+                                    let m = Msg::default()
                                         .set_content(String::from(">command prompt testing..."));
                                     self.add_message(m.clone());
                                     if let Some(ref mut hook) = self._on_input_enter {
                                         hook(m);
                                     }
                                 } else {
-                                    let m = msg::Msg::default()
+                                    let m = Msg::default()
                                         .set_content(String::from("else>command prompt testing..."));
                                     self.add_message(m.clone());
                                     if let Some(ref mut hook) = self._on_input_enter {
@@ -565,7 +720,7 @@ impl App {
                         InputMode::Editing => match key.code {
                             KeyCode::Enter => {
                                 if !self.input.value().trim().is_empty() {
-                                    let m = msg::Msg::default()
+                                    let m = Msg::default()
                                         .set_content(self.input.value().to_owned());
                                     self.add_message(m.clone());
                                     if let Some(ref mut hook) = self._on_input_enter {
@@ -693,3 +848,151 @@ impl Widget for &mut App {
         Menu::new().render(chunks[0], buf, &mut self.menu);
     }
 }
+
+const TOPIC: &str = "chat-bar";
+
+// We create a custom network behaviour that combines Gossipsub and Mdns.
+#[derive(NetworkBehaviour)]
+struct MyBehaviour {
+    gossipsub: gossipsub::Behaviour,
+    mdns: mdns::tokio::Behaviour,
+}
+
+async fn async_prompt(mempool_url: String) -> String {
+    let s = tokio::spawn(async move {
+        let agent: Agent = ureq::AgentBuilder::new()
+            .timeout_read(Duration::from_secs(10))
+            .timeout_write(Duration::from_secs(10))
+            .build();
+        let body: String = agent
+            .get(&mempool_url)
+            .call()
+            .expect("")
+            .into_string()
+            .expect("mempool_url:body:into_string:fail!");
+
+        body
+    });
+
+    s.await.unwrap()
+}
+
+async fn fetch_data_async(url: String) -> Result<ureq::Response, ureq::Error> {
+    task::spawn_blocking(move || {
+        let response = ureq::get(&url).call();
+        response
+    })
+    .await
+    .unwrap() // Handle potential join errors
+}
+
+pub async fn evt_loop(
+    mut send: tokio::sync::mpsc::Receiver<Msg>,
+    recv: tokio::sync::mpsc::Sender<Msg>,
+    topic: gossipsub::IdentTopic,
+) -> Result<(), Box<dyn Error>> {
+    let mut swarm = libp2p::SwarmBuilder::with_new_identity()
+        .with_tokio()
+        .with_tcp(
+            tcp::Config::default(),
+            noise::Config::new,
+            yamux::Config::default,
+        )?
+        .with_quic()
+        .with_behaviour(|key| {
+            // NOTE: To content-address message, we can take the hash of message and use it as an ID. This is used to deduplicate messages.
+            // let message_id_fn = |message: &gossipsub::Message| {
+            //     let mut s = DefaultHasher::new();
+            //     message.data.hash(&mut s);
+            //     gossipsub::MessageId::from(s.finish().to_string())
+            // };
+
+            // Set a custom gossipsub configuration
+            let gossipsub_config = gossipsub::ConfigBuilder::default()
+                .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
+                .validation_mode(gossipsub::ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
+                // .message_id_fn(message_id_fn) // content-address messages. No two messages of the same content will be propagated.
+                .build()
+                .map_err(|msg| io::Error::new(io::ErrorKind::Other, msg))?; // Temporary hack because `build` does not return a proper `std::error::Error`.
+
+            // build a gossipsub network behaviour
+            let gossipsub = gossipsub::Behaviour::new(
+                gossipsub::MessageAuthenticity::Signed(key.clone()),
+                gossipsub_config,
+            )?;
+
+            let mdns =
+                libp2p::mdns::tokio::Behaviour::new(libp2p::mdns::Config::default(), key.public().to_peer_id())?;
+            Ok(MyBehaviour { gossipsub, mdns })
+        })?
+        .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
+        .build();
+
+    // subscribes to our topic
+    swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
+
+    // Listen on all interfaces and whatever port the OS assigns
+    swarm.listen_on("/ip4/0.0.0.0/udp/0/quic-v1".parse()?)?;
+    swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+
+    debug!("Enter messages via STDIN and they will be sent to connected peers using Gossipsub");
+
+    // Kick it off
+    loop {
+        select! {
+            Some(m) = send.recv() => {
+                if let Err(e) = swarm
+                    .behaviour_mut().gossipsub
+                    .publish(topic.clone(), serde_json::to_vec(&m)?) {
+                    warn!("Publish error: {e:?}");
+                    let m = Msg::default().set_content(format!("publish error: {e:?}")).set_kind(MsgKind::System);
+                    recv.send(m).await?;
+                }
+            }
+            event = swarm.select_next_some() => match event {
+                SwarmEvent::Behaviour(MyBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
+                    for (peer_id, _multiaddr) in list {
+                        debug!("mDNS discovered a new peer: {peer_id}");
+                        swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                        // let m = Msg::default().set_content(format!("discovered new peer: {peer_id}")).set_kind(MsgKind::System);
+                        // recv.send(m).await?;
+                    }
+                },
+                SwarmEvent::Behaviour(MyBehaviourEvent::Mdns(mdns::Event::Expired(list))) => {
+                    for (peer_id, _multiaddr) in list {
+                        debug!("mDNS discover peer has expired: {peer_id}");
+                        swarm.behaviour_mut().gossipsub.remove_explicit_peer(&peer_id);
+                        // let m = Msg::default().set_content(format!("peer expired: {peer_id}")).set_kind(MsgKind::System);
+                        // recv.send(m).await?;
+                    }
+                },
+                SwarmEvent::Behaviour(MyBehaviourEvent::Gossipsub(gossipsub::Event::Message {
+                    propagation_source: peer_id,
+                    message_id: id,
+                    message,
+                })) => {
+                    debug!(
+                        "Got message: '{}' with id: {id} from peer: {peer_id}",
+                        String::from_utf8_lossy(&message.data),
+                    );
+                    match serde_json::from_slice::<Msg>(&message.data) {
+                        Ok(msg) => {
+                            recv.send(msg).await?;
+                        },
+                        Err(e) => {
+                            warn!("Error deserializing message: {e:?}");
+                            let m = Msg::default().set_content(format!("Error deserializing message: {e:?}")).set_kind(MsgKind::System);
+                            recv.send(m).await?;
+                        }
+                    }
+                },
+                SwarmEvent::NewListenAddr { address, .. } => {
+                    debug!("Local node is listening on {address}");
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+
