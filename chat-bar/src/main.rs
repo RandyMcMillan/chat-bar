@@ -93,6 +93,7 @@ fn main() -> color_eyre::Result<()> {
 
     // Print the commit ID (SHA-1 hash)
     debug!("Commit ID: {}", commit.id());
+    debug!("Commit Summary: {:?}", commit.summary());
 
     // Optionally, print other commit information
     debug!(
@@ -104,8 +105,16 @@ fn main() -> color_eyre::Result<()> {
     for line in commit.summary().unwrap_or("HEAD").chars() {
         char_vec.push(line);
     }
+    char_vec.push(' ');
     let commit_summary = collect_chars_to_string(&char_vec);
     debug!("commit_summary:\n\n{}\n\n", commit_summary);
+    let mut commit_message: Vec<String> = Vec::new();
+    //commit_message.push(String::from(""));
+    for line in commit.body() {
+        commit_message.push(String::from(line));
+    }
+    //let commit_message = collect_chars_to_string(&char_vec);
+    debug!("commit_message:\n\n{:?}\n\n", commit_message);
 
     //env
     let args_vec: Vec<String> = env_args().collect();
@@ -164,11 +173,11 @@ fn main() -> color_eyre::Result<()> {
                 .set_kind(MsgKind::Raw),
         );
         //for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-            app.add_message(
-                Msg::default()
-                    .set_content(commit_summary.clone())
-                    .set_kind(MsgKind::Raw),
-            );
+        app.add_message(
+            Msg::default()
+                .set_content(format!("{:?}", commit_message.clone()))
+                .set_kind(MsgKind::Raw),
+        );
         //}
     }
 
