@@ -1,8 +1,8 @@
 export LIBP2P_MDNS_SERVICE_NAME = _bar._tcp.local
 
 chat_bar:
-	@echo "Running chat_bar"
-	cargo run --bin chat_bar
+	@echo "Running chat-bar"
+	cargo run --bin chat-bar
 
 basic:
 	@echo "Running basic"

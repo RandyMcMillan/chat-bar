@@ -6,7 +6,7 @@ use libp2p::gossipsub;
 use once_cell::sync::OnceCell;
 use std::{
     env,
-    env::args,
+    env::args as env_args,
     io::{self, stdout, Stdout},
     sync::{Arc, Mutex},
     time::Duration,
@@ -18,8 +18,11 @@ use chat_bar::msg;
 use chat_bar::msg::Msg;
 use chat_bar::msg::MsgKind;
 use chat_bar::p2p::evt_loop;
+use clap::parser::ValueSource;
+use clap::{Arg, ArgAction, ArgMatches, Command, Parser, Subcommand};
 
 use color_eyre::config::HookBuilder;
+use color_eyre::eyre::{Result, WrapErr};
 use ratatui::{
     crossterm::{
         event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -46,32 +49,38 @@ enum InputMode {
     Command,
 }
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Name of the person to greet
+    #[arg(short, long, default_value = "user")]
+    name: String,
+
+    /// Number of times to greet
+    #[arg(short, long, default_value_t = 1)]
+    count: u8,
+    #[arg(short = 't', long)]
+    tui: bool,
+    #[arg(long = "cfg", default_value = "")]
+    config: String,
+    #[arg(long = "log_level", default_value = "")]
+    log_level: String,
+    #[arg(long = "topic", default_value = "")]
+    topic: String,
+}
+
+fn get_repo() -> color_eyre::Result<Repository> {
+    Ok(Repository::discover(".")?)
+}
+
 fn main() -> color_eyre::Result<()> {
-    let args_vec: Vec<String> = env::args().collect();
-    trace!("Arguments:");
-    for (index, arg) in args_vec.iter().enumerate() {
-        if Some(index) == Some(0) {
-            trace!("Some(index) = Some(0):  {}: {}", index, arg);
-        } else {
-            trace!("  {}: {}", index, arg);
-        }
-    }
+    //App
+    let mut terminal = init_terminal()?;
+    //let app = App::default().run(&mut terminal)?;
+    let mut app = App::default();
 
-    if let Some(log_level) = args().nth(2) {
-        Builder::from_env(
-            Env::default().default_filter_or(log_level + ",libp2p_gossipsub::behaviour=error"),
-        )
-        .init();
-    } else {
-        Builder::from_env(
-            Env::default().default_filter_or("none,libp2p_gossipsub::behaviour=error"),
-        )
-        .init();
-    }
-
-    // Create a Gossipsub topic
-    // Open the Git repository
-    let repo = Repository::discover(".")?; // Opens the repository in the current directory
+    //repo
+    let repo = get_repo()?;
 
     // Get the reference to HEAD
     let head = repo.head()?;
@@ -96,60 +105,39 @@ fn main() -> color_eyre::Result<()> {
         char_vec.push(line);
     }
     let commit_summary = collect_chars_to_string(&char_vec);
-    //debug!("commit_summary:\n\n{}\n\n", commit_summary);
+    debug!("commit_summary:\n\n{}\n\n", commit_summary);
 
-    let mut topic = String::from(format!("{:0>64}", 0));
-
-    let mut terminal = init_terminal()?;
-    //let app = App::default().run(&mut terminal)?;
-    let mut app = App::default();
-
-    let mut topic = String::from(format!("{:0>64}", 0));
-
-    if let Some(topic_arg) = args().nth(1) {
-        app.add_message(
-            Msg::default()
-                .set_content(String::from("-------"))
-                .set_kind(MsgKind::Command),
-        );
-
-        topic = String::from(format!("\n\n{}", topic_arg));
-        app.add_message(
-            Msg::default()
-                .set_content(topic.clone())
-                .set_kind(MsgKind::Raw),
-        );
-    } else {
-        app.add_message(
-            Msg::default()
-                .set_content(String::from("-------"))
-                .set_kind(MsgKind::Command),
-        );
-
-        //push commit body
-        for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-            app.add_message(
-                Msg::default()
-                    .set_content(line.to_string())
-                    .set_kind(MsgKind::System),
-            );
+    //env
+    let args_vec: Vec<String> = env_args().collect();
+    trace!("Arguments:");
+    for (index, arg) in args_vec.iter().enumerate() {
+        if Some(index) == Some(0) {
+            trace!("Some(index) = Some(0):  {}: {}", index, arg);
+        } else {
+            trace!("  {}: {}", index, arg);
         }
-        app.add_message(
-            Msg::default()
-                .set_content(String::from("-------"))
-                .set_kind(MsgKind::Command),
-        );
+    }
 
-        //commit.id is padded to fit sha256/nostr privkey context
-        topic = String::from(format!("TOPIC> {} {}", commit.id(), commit_summary));
+    let cli_args = Args::parse();
+    for _ in 0..cli_args.count {
+        println!("Hello {}!", cli_args.name);
+    }
 
-        app.add_message(
-            Msg::default()
-                .set_content(topic.clone())
-                .set_kind(MsgKind::Command),
-        );
+    debug!("cli_args.log_level {}!", cli_args.log_level.clone());
+    if cli_args.log_level.len() > 0 {
+        debug!("log_level {}!", cli_args.log_level.clone());
 
-        debug!("{}", topic);
+        Builder::from_env(
+            Env::default().default_filter_or(
+                cli_args.log_level.clone() + ",libp2p_gossipsub::behaviour=error",
+            ),
+        )
+        .init();
+    } else {
+        Builder::from_env(
+            Env::default().default_filter_or("none,libp2p_gossipsub::behaviour=error"),
+        )
+        .init();
     }
 
     let (peer_tx, mut peer_rx) = tokio::sync::mpsc::channel::<Msg>(100);
@@ -162,10 +150,41 @@ fn main() -> color_eyre::Result<()> {
         input_tx_clone.blocking_send(m).unwrap();
     });
 
+    //topic
+    //println!("cli_args.topic {}!", cli_args.topic);
+    let mut topic;
+    if cli_args.topic.len() > 0 {
+        topic = String::from(format!("{}", cli_args.topic.clone()));
+    } else {
+        //topic = String::from(format!("{:0>64}", 0));
+        topic = String::from(format!("TOPIC> {} {}", commit.id(), commit_summary));
+        app.add_message(
+            Msg::default()
+                .set_content(topic.clone())
+                .set_kind(MsgKind::Raw),
+        );
+        for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+            app.add_message(
+                Msg::default()
+                    .set_content(line.to_string())
+                    .set_kind(MsgKind::Raw),
+            );
+        }
+    }
+
+    //app.add_message(
+    //    Msg::default()
+    //        .set_content(topic.clone())
+    //        .set_kind(MsgKind::Command),
+    //);
+
+    debug!("{}", topic);
     let topic = gossipsub::IdentTopic::new(format!("{}", topic));
+    debug!("{}", topic);
     global_rt().spawn(async move {
         evt_loop(input_rx, peer_tx, topic).await.unwrap();
     });
+    //topic
 
     // recv from peer
     let mut tui_msg_adder = app.add_msg_fn();
@@ -175,7 +194,6 @@ fn main() -> color_eyre::Result<()> {
             tui_msg_adder(m);
         }
     });
-
     // say hi
     let input_tx_clone = input_tx.clone();
     global_rt().spawn(async move {
@@ -186,6 +204,7 @@ fn main() -> color_eyre::Result<()> {
             .unwrap();
     });
 
+    //app.run
     app.run(&mut terminal)?;
 
     // say goodbye
@@ -204,6 +223,7 @@ fn main() -> color_eyre::Result<()> {
     Ok(())
 }
 
+//global_rt
 fn global_rt() -> &'static tokio::runtime::Runtime {
     static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
     RT.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
