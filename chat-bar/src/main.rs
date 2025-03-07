@@ -1,6 +1,6 @@
-use ratatui::widgets::Padding;
 use futures::stream::StreamExt;
 use libp2p::{gossipsub, mdns, noise, swarm::NetworkBehaviour, swarm::SwarmEvent, tcp, yamux};
+use ratatui::widgets::Padding;
 use std::error::Error;
 use tokio::{select, task};
 use tracing::warn;
@@ -822,7 +822,17 @@ impl Widget for &mut App {
         let messages = Widget::render(
             List::new(messages_vec)
                 .direction(ratatui::widgets::ListDirection::BottomToTop)
-                .block(Block::default().borders(Borders::ALL).title("messages_vec")),
+                .block(
+                    Block::default()
+                        .borders(Borders::TOP)
+                        .padding(Padding::horizontal(3))
+                        .title("messages_vec"),
+                )
+                .style(match self.input_mode {
+                    InputMode::Normal => Style::default(),
+                    _ => Style::default(), //InputMode::Editing => Style::default().fg(Color::Cyan),
+                                           //InputMode::Command => Style::default().fg(Color::Yellow),
+                }),
             chunks[2],
             buf,
         );
@@ -835,7 +845,7 @@ impl Widget for &mut App {
             })
             .scroll((0, scroll as u16))
             .block(Block::default().borders(Borders::ALL).title("Input2"))
-			.wrap(Wrap { trim: true })
+            .wrap(Wrap { trim: true })
             .render(chunks[3], buf);
 
         // draw menu last, so it renders on top of other content
