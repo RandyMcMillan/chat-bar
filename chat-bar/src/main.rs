@@ -1,22 +1,22 @@
-use tracing::warn;
 use futures::stream::StreamExt;
 use libp2p::{gossipsub, mdns, noise, swarm::NetworkBehaviour, swarm::SwarmEvent, tcp, yamux};
 use std::error::Error;
 use tokio::{select, task};
+use tracing::warn;
 use ureq::Agent;
 
 use git2::Config;
 //use crate::gossipsub::Config;
 //use libp2p::gossipsub::Behaviour;
 //use libp2p::mdns::tokio::Behaviour;
-use once_cell::sync::Lazy;
-use std::fmt::Display;
 use env_logger::{Builder, Env};
 use git2::Commit;
 use git2::Repository;
 use git2::Time;
+use once_cell::sync::Lazy;
 use once_cell::sync::OnceCell;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use std::{
     env,
     env::args as env_args,
@@ -48,7 +48,6 @@ use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
 
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
-
 
 pub(crate) static USER_NAME: Lazy<String> = Lazy::new(|| {
     format!(
@@ -170,8 +169,6 @@ impl Display for Msg {
     }
 }
 
-
-
 #[derive(Default)]
 enum InputMode {
     #[default]
@@ -212,9 +209,7 @@ fn split_strings_in_vec(vec: Vec<String>, delimiter: char) -> Vec<Vec<String>> {
 }
 
 fn split_into_chunks(vec: Vec<String>, chunk_size: usize) -> Vec<Vec<String>> {
-    vec.chunks(chunk_size)
-        .map(|chunk| chunk.to_vec())
-        .collect()
+    vec.chunks(chunk_size).map(|chunk| chunk.to_vec()).collect()
 }
 
 fn main() -> color_eyre::Result<()> {
@@ -260,16 +255,13 @@ fn main() -> color_eyre::Result<()> {
     //let commit_message = collect_chars_to_string(&char_vec);
     println!("commit_message:\n\n{:?}\n\n", commit_message);
 
+    //let chunks = split_into_chunks(commit_message, 2);
+    // println!("{:?}", chunks); // Output: [["a
 
-   //let chunks = split_into_chunks(commit_message, 2);
-   // println!("{:?}", chunks); // Output: [["a
-
-    let split_vec = split_strings_in_vec(commit_message, '\n');
+    let split_vec = split_strings_in_vec(commit_message.clone(), '\n');
     println!("{:?}", split_vec);
 
-
-	std::process::exit(0);
-
+    //std::process::exit(0);
 
     //env
     let args_vec: Vec<String> = env_args().collect();
@@ -720,8 +712,8 @@ impl App {
                         InputMode::Editing => match key.code {
                             KeyCode::Enter => {
                                 if !self.input.value().trim().is_empty() {
-                                    let m = Msg::default()
-                                        .set_content(self.input.value().to_owned());
+                                    let m =
+                                        Msg::default().set_content(self.input.value().to_owned());
                                     self.add_message(m.clone());
                                     if let Some(ref mut hook) = self._on_input_enter {
                                         hook(m);
@@ -921,8 +913,10 @@ pub async fn evt_loop(
                 gossipsub_config,
             )?;
 
-            let mdns =
-                libp2p::mdns::tokio::Behaviour::new(libp2p::mdns::Config::default(), key.public().to_peer_id())?;
+            let mdns = libp2p::mdns::tokio::Behaviour::new(
+                libp2p::mdns::Config::default(),
+                key.public().to_peer_id(),
+            )?;
             Ok(MyBehaviour { gossipsub, mdns })
         })?
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
@@ -994,5 +988,3 @@ pub async fn evt_loop(
         }
     }
 }
-
-
