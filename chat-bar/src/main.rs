@@ -791,7 +791,7 @@ impl Widget for &mut App {
                 [
                     Constraint::Length(1), //0 // MENU
                     Constraint::Length(3), //1 // HEADER
-                    Constraint::Fill(1),   //2 // MESSAGE_LIST
+                    Constraint::Fill(0),   //2 // MESSAGE_LIST
                     Constraint::Length(3), //3 // INPUT
                 ]
                 .as_ref(),
