@@ -321,11 +321,11 @@ fn main() -> color_eyre::Result<()> {
                 .set_kind(MsgKind::Raw),
         );
         for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-        app.add_message(
-            Msg::default()
-                .set_content(format!("{}", line))
-                .set_kind(MsgKind::Raw),
-        );
+            app.add_message(
+                Msg::default()
+                    .set_content(format!("{:?}", line))
+                    .set_kind(MsgKind::Chat),
+            );
         }
     }
 
