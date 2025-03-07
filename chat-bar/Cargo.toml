@@ -1,5 +1,5 @@
 [package]
-name = "chat_bar"
+name = "chat-bar"
 version = "0.1.0"
 edition = "2021"
 publish = false
