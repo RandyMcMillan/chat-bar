@@ -126,7 +126,7 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
             )),
             Chat => {
                 if m.from == *USER_NAME {
-                    Line::default().spans(vec![
+                    Line::default().left_aligned().spans(vec![
                         Span::styled(
                             format!("{}{} ", &m.from, ">"),
                             Style::default().fg(gen_color_by_hash(&m.from)),
@@ -134,7 +134,7 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                         m.content.clone().into(),
                     ])
                 } else {
-                    Line::default().spans(vec![
+                    Line::default().right_aligned().spans(vec![
                         m.content.clone().into(),
                         Span::styled(
                             format!(" {}{}", "<", &m.from),
