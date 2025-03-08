@@ -67,6 +67,7 @@ pub enum MsgKind {
     System,
     Raw,
     Command,
+    Git,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -153,6 +154,15 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                 ),
                 m.content.clone().into(),
             ]),
+            Git => Line::default().spans(vec![
+                Span::styled(
+                    format!("{}", ""),
+                    Style::default()
+                        .fg(gen_color_by_hash(&m.from))
+                        .add_modifier(Modifier::ITALIC),
+                ),
+                m.content.clone().into(),
+            ]),
         }
     }
 }
@@ -166,6 +176,7 @@ impl Display for Msg {
             MsgKind::System => write!(f, "[System] {}", self.content),
             MsgKind::Raw => write!(f, "{}", self.content),
             MsgKind::Command => write!(f, "[Command] {}:{}", self.from, self.content),
+            MsgKind::Git => write!(f, "[Git] {}:{}", self.from, self.content),
         }
     }
 }
@@ -250,6 +261,7 @@ fn main() -> color_eyre::Result<()> {
     //println!("commit_summary:\n\n{}\n\n", commit_summary);
     let mut commit_message: Vec<String> = Vec::new();
     //commit_message.push(String::from(""));
+
     for line in commit.body() {
         commit_message.push(String::from(line));
     }
@@ -314,19 +326,20 @@ fn main() -> color_eyre::Result<()> {
         topic = String::from(format!("{}", cli_args.topic.clone()));
     } else {
         //topic = String::from(format!("{:0>64}", 0));
+        for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+            app.add_message(
+                Msg::default()
+                    //.set_content(format!("{:?}", line))
+                    .set_content(format!("{:}", line))
+                    .set_kind(MsgKind::Git),
+            );
+        }
         topic = String::from(format!("TOPIC> {} {}", commit.id(), commit_summary));
         app.add_message(
             Msg::default()
                 .set_content(topic.clone())
-                .set_kind(MsgKind::Raw),
+                .set_kind(MsgKind::Chat),
         );
-        for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-            app.add_message(
-                Msg::default()
-                    .set_content(format!("{:?}", line))
-                    .set_kind(MsgKind::Chat),
-            );
-        }
     }
 
     //app.add_message(
@@ -465,7 +478,7 @@ fn restore_terminal() -> io::Result<()> {
 
 /// App holds the state of the application
 pub struct App {
-    content: String,
+    header_content: String,
     /// Current value of the input box
     input: Input,
     /// Current input mode
@@ -480,7 +493,7 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         App {
-            content: String::new(),
+            header_content: String::new(),
             input: Input::default(),
             input_mode: InputMode::default(),
             messages: Default::default(),
@@ -604,19 +617,19 @@ impl App {
                 match e {
                     MenuEvent::Selected(item) => match item {
                         Action::Home => {
-                            self.content = format!("Welcome to Gnostr Chat");
+                            self.header_content = format!("Welcome to Gnostr Chat");
                         }
                         Action::Exit => {
                             return Ok(());
                         }
                         Action::FileNew => {
-                            self.content.clear();
+                            self.header_content.clear();
                         }
                         Action::FileOpenRecent(file) => {
-                            self.content = format!("content of {file}");
+                            self.header_content = format!("content of {file}");
                         }
                         action => {
-                            self.content = format!("{action:?} not implemented");
+                            self.header_content = format!("{action:?} not implemented");
                         }
                     },
                 } // match e end
@@ -801,7 +814,7 @@ impl Widget for &mut App {
         let width = chunks[1].width.max(3) - 3; // keep 2 for borders and 1 for cursor
         let scroll = self.input.visual_scroll(width as usize);
 
-        let header = Paragraph::new(self.content.as_str())
+        let header = Paragraph::new(self.header_content.as_str())
             .style(match self.input_mode {
                 InputMode::Normal => Style::default(),
                 _ => Style::default(), //InputMode::Editing => Style::default().fg(Color::Cyan),
