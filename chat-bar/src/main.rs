@@ -832,7 +832,7 @@ impl Widget for &mut App {
         // keep 2 for borders and 1 for cursor
         let scroll = self.input.visual_scroll(width as usize);
 
-        let mut header_content = Paragraph::new(String::from("tesing	") + &self.topic)
+        let mut header_content = Paragraph::new(String::from("testing>>>") + &self.topic.to_string() + &String::from("<<<testing"))
             .style(match self.input_mode {
                 InputMode::Normal => Style::default(),
                 //InputMode::Editing => Style::default().fg(Color::Cyan),
