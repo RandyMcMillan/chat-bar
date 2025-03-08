@@ -1,5 +1,7 @@
 use futures::stream::StreamExt;
 use libp2p::{gossipsub, mdns, noise, swarm::NetworkBehaviour, swarm::SwarmEvent, tcp, yamux};
+use ratatui::prelude::Constraint::Fill;
+use ratatui::prelude::Constraint::Min;
 use ratatui::widgets::Padding;
 use std::error::Error;
 use tokio::{select, task};
@@ -33,6 +35,7 @@ use clap::{Arg, ArgAction, ArgMatches, Command, Parser, Subcommand};
 
 use color_eyre::config::HookBuilder;
 use color_eyre::eyre::{Result, WrapErr};
+use ratatui::prelude::Constraint::Length;
 use ratatui::{
     crossterm::{
         event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -73,7 +76,7 @@ pub enum MsgKind {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Msg {
     pub from: String,
-    pub content: String,
+    pub content: Vec<String>,
     pub kind: MsgKind,
 }
 
@@ -81,7 +84,7 @@ impl Default for Msg {
     fn default() -> Self {
         Self {
             from: USER_NAME.clone(),
-            content: "".to_string(),
+            content: vec!["".to_string(), "".to_string()],
             kind: MsgKind::Chat,
         }
     }
@@ -94,8 +97,19 @@ impl Msg {
     }
 
     pub fn set_content(mut self, content: String) -> Self {
-        self.content = content;
+        self.content[0] = content;
         self
+    }
+    pub fn wrap_text(text: String, max_width: usize) -> Vec<String> {
+        text.lines()
+            .flat_map(|line| {
+                line.chars()
+                    .collect::<Vec<char>>()
+                    .chunks(max_width)
+                    .map(|chunk| chunk.iter().collect::<String>())
+                    .collect::<Vec<String>>()
+            })
+            .collect()
     }
 }
 
@@ -132,11 +146,11 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                             format!("{}{} ", &m.from, ">"),
                             Style::default().fg(gen_color_by_hash(&m.from)),
                         ),
-                        m.content.clone().into(),
+                        m.content[0].clone().into(),
                     ])
                 } else {
                     Line::default().right_aligned().spans(vec![
-                        m.content.clone().into(),
+                        m.content[0].clone().into(),
                         Span::styled(
                             format!(" {}{}", "<", &m.from),
                             Style::default().fg(gen_color_by_hash(&m.from)),
@@ -144,7 +158,7 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                     ])
                 }
             }
-            Raw => m.content.clone().into(),
+            Raw => m.content[0].clone().into(),
             Command => Line::default().spans(vec![
                 Span::styled(
                     format!("Command: {}{} ", &m.from, ">"),
@@ -152,7 +166,7 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                         .fg(gen_color_by_hash(&m.from))
                         .add_modifier(Modifier::ITALIC),
                 ),
-                m.content.clone().into(),
+                m.content[0].clone().into(),
             ]),
             Git => Line::default().spans(vec![
                 Span::styled(
@@ -161,7 +175,7 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                         .fg(gen_color_by_hash(&m.from))
                         .add_modifier(Modifier::ITALIC),
                 ),
-                m.content.clone().into(),
+                m.content[0].clone().into(),
             ]),
         }
     }
@@ -172,11 +186,11 @@ impl Display for Msg {
         match self.kind {
             MsgKind::Join => write!(f, "{} join", self.from),
             MsgKind::Leave => write!(f, "{} left", self.from),
-            MsgKind::Chat => write!(f, "{}: {}", self.from, self.content),
-            MsgKind::System => write!(f, "[System] {}", self.content),
-            MsgKind::Raw => write!(f, "{}", self.content),
-            MsgKind::Command => write!(f, "[Command] {}:{}", self.from, self.content),
-            MsgKind::Git => write!(f, "[Git] {}:{}", self.from, self.content),
+            MsgKind::Chat => write!(f, "{}: {}", self.from, self.content[0]),
+            MsgKind::System => write!(f, "[System] {}", self.content[0]),
+            MsgKind::Raw => write!(f, "{}", self.content[0]),
+            MsgKind::Command => write!(f, "[Command] {}:{}", self.from, self.content[0]),
+            MsgKind::Git => write!(f, "[Git] {}:{}", self.from, self.content[0]),
         }
     }
 }
@@ -192,7 +206,7 @@ enum InputMode {
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-struct Args {
+pub struct Args {
     /// Name of the person to greet
     #[arg(short, long, default_value = "user")]
     name: String,
@@ -210,7 +224,7 @@ struct Args {
     topic: String,
 }
 
-fn get_repo() -> color_eyre::Result<Repository> {
+pub fn get_repo() -> color_eyre::Result<Repository> {
     Ok(Repository::discover(".")?)
 }
 
@@ -508,7 +522,7 @@ impl Default for App {
                         MenuItem::item("Open", Action::FileOpen),
                         MenuItem::group(
                             "Open recent",
-                            ["file_1.txt", "file_2.txt"]
+                            ["file_1.txt\nline 1\nline 2", "file_2.txt"]
                                 .iter()
                                 .map(|&f| MenuItem::item(f, Action::FileOpenRecent(f.into())))
                                 .collect(),
@@ -797,23 +811,46 @@ impl App {
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let chunks = Layout::default()
+        //let width = chunks[1].width.max(3) - 3; // keep 2 for borders and 1 for cursor
+        //let scroll = self.input.visual_scroll(width as usize);
+
+        //let vertical = Layout::vertical([Length(3), Min(1), Length(3)]);
+        //let [title_area, main_area, status_area] = vertical.areas(area);
+        //let horizontal = Layout::horizontal([Fill(1); 2]);
+        //let [left_area, right_area] = horizontal.areas(main_area);
+
+        //let widget_blocks = Widget::render(
+        //Block::bordered().title("Title Bar"), title_area);
+        //Block::bordered().title("Status Bar"), status_area);
+        //Block::bordered().title("Left"), left_area);
+        //Block::bordered().title("Right"), right_area);
+        //);
+
+        let vertical_chunks = Layout::default()
             .direction(Direction::Vertical)
-            // .margin(2)
+            //.margin(2)
             .constraints(
                 [
                     Constraint::Length(1), //0 // MENU
-                    Constraint::Length(3), //1 // HEADER
-                    Constraint::Fill(0),   //2 // MESSAGE_LIST
+                    Constraint::Length(0), //1 // HEADER
+                    Constraint::Fill(1),   //2 // MESSAGE_LIST
                     Constraint::Length(3), //3 // INPUT
                 ]
                 .as_ref(),
             )
             .split(area);
 
-        let width = chunks[1].width.max(3) - 3; // keep 2 for borders and 1 for cursor
+        let menu_area = vertical_chunks[0];
+        let header_area = vertical_chunks[1];
+        let message_area = vertical_chunks[2];
+        let input_area = vertical_chunks[3];
+        let horizontal = Layout::horizontal([Fill(0); 2]).vertical_margin(1); //messages | commit
+        let [left_area, right_area] = horizontal.areas(message_area);
+
+        let width = vertical_chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
         let scroll = self.input.visual_scroll(width as usize);
 
+        //HEADER
         let header = Paragraph::new(self.header_content.as_str())
             .style(match self.input_mode {
                 InputMode::Normal => Style::default(),
@@ -822,9 +859,9 @@ impl Widget for &mut App {
             })
             .scroll((0, scroll as u16))
             .block(Block::default().borders(Borders::ALL).title("HEADER")) //;
-            .render(chunks[1], buf);
+            .render(right_area, buf);
 
-        let height = chunks[2].height;
+        let height = message_area.height - 0;
         let msgs = self.messages.lock().unwrap();
         let messages_vec: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
             .iter()
@@ -837,8 +874,8 @@ impl Widget for &mut App {
                 .direction(ratatui::widgets::ListDirection::BottomToTop)
                 .block(
                     Block::default()
-                        .borders(Borders::TOP)
-                        .padding(Padding::horizontal(3))
+                        .borders(Borders::ALL)
+                        .padding(Padding::horizontal(1))
                         .title("messages_vec"),
                 )
                 .style(match self.input_mode {
@@ -846,9 +883,35 @@ impl Widget for &mut App {
                     _ => Style::default(), //InputMode::Editing => Style::default().fg(Color::Cyan),
                                            //InputMode::Command => Style::default().fg(Color::Yellow),
                 }),
-            chunks[2],
+            left_area,
             buf,
         );
+
+        //let height = main_area.height;
+        //let msgs = self.messages.lock().unwrap();
+        //let messages_vec: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
+        //    .iter()
+        //    .rev()
+        //    .map(|m| ListItem::new(Line::from(m)))
+        //    .take(height as usize)
+        //    .collect();
+        //let messages = Widget::render(
+        //    List::new(messages_vec)
+        //        .direction(ratatui::widgets::ListDirection::BottomToTop)
+        //        .block(
+        //            Block::default()
+        //                .borders(Borders::TOP)
+        //                .padding(Padding::horizontal(3))
+        //                .title("messages_vec"),
+        //        )
+        //        .style(match self.input_mode {
+        //            InputMode::Normal => Style::default(),
+        //            _ => Style::default(), //InputMode::Editing => Style::default().fg(Color::Cyan),
+        //                                   //InputMode::Command => Style::default().fg(Color::Yellow),
+        //        }),
+        //    right_area,
+        //    buf,
+        //);
 
         let input = Paragraph::new(self.input.value())
             .style(match self.input_mode {
@@ -856,13 +919,13 @@ impl Widget for &mut App {
                 InputMode::Editing => Style::default().fg(Color::Cyan),
                 InputMode::Command => Style::default().fg(Color::Yellow),
             })
-            .scroll((0, scroll as u16))
+            //.scroll((0, scroll as u16))
             .block(Block::default().borders(Borders::ALL).title("Input2"))
-            .wrap(Wrap { trim: true })
-            .render(chunks[3], buf);
+            //.wrap(Wrap { trim: true })
+            .render(input_area, buf);
 
         // draw menu last, so it renders on top of other content
-        Menu::new().render(chunks[0], buf, &mut self.menu);
+        Menu::new().render(menu_area, buf, &mut self.menu);
     }
 }
 
@@ -870,12 +933,13 @@ const TOPIC: &str = "chat-bar";
 
 // We create a custom network behaviour that combines Gossipsub and Mdns.
 #[derive(NetworkBehaviour)]
-struct MyBehaviour {
-    gossipsub: gossipsub::Behaviour,
-    mdns: mdns::tokio::Behaviour,
+pub struct MyBehaviour {
+    pub gossipsub: gossipsub::Behaviour,
+    pub mdns: mdns::tokio::Behaviour,
 }
 
-async fn async_prompt(mempool_url: String) -> String {
+/// mempool_url
+pub async fn async_prompt(mempool_url: String) -> String {
     let s = tokio::spawn(async move {
         let agent: Agent = ureq::AgentBuilder::new()
             .timeout_read(Duration::from_secs(10))
@@ -917,7 +981,11 @@ pub async fn evt_loop(
         )?
         .with_quic()
         .with_behaviour(|key| {
-            // NOTE: To content-address message, we can take the hash of message and use it as an ID. This is used to deduplicate messages.
+            // NOTE: To content-address message,
+            // we can take the hash of message
+            // and use it as an ID.
+            // This is used to deduplicate messages.
+            //
             // let message_id_fn = |message: &gossipsub::Message| {
             //     let mut s = DefaultHasher::new();
             //     message.data.hash(&mut s);
@@ -926,11 +994,17 @@ pub async fn evt_loop(
 
             // Set a custom gossipsub configuration
             let gossipsub_config = gossipsub::ConfigBuilder::default()
-                .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
-                .validation_mode(gossipsub::ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
-                // .message_id_fn(message_id_fn) // content-address messages. No two messages of the same content will be propagated.
+                .heartbeat_interval(Duration::from_secs(10))
+                // This is set to aid debugging by not cluttering the log space
+                .validation_mode(gossipsub::ValidationMode::Strict)
+                // This sets the kind of message validation.
+                // The default is Strict (enforce message signing)
+                // .message_id_fn(message_id_fn)
+                // content-address messages.
+                // No two messages of the same content will be propagated.
                 .build()
-                .map_err(|msg| io::Error::new(io::ErrorKind::Other, msg))?; // Temporary hack because `build` does not return a proper `std::error::Error`.
+                .map_err(|msg| io::Error::new(io::ErrorKind::Other, msg))?;
+            // Temporary hack because `build` does not return a proper `std::error::Error`.
 
             // build a gossipsub network behaviour
             let gossipsub = gossipsub::Behaviour::new(
