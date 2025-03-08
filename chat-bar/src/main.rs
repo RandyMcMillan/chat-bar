@@ -100,16 +100,22 @@ impl Msg {
         self.content[0] = content;
         self
     }
-    pub fn wrap_text(text: String, max_width: usize) -> Vec<String> {
-        text.lines()
-            .flat_map(|line| {
-                line.chars()
-                    .collect::<Vec<char>>()
-                    .chunks(max_width)
-                    .map(|chunk| chunk.iter().collect::<String>())
-                    .collect::<Vec<String>>()
-            })
-            .collect()
+    pub fn wrap_text(mut self, text: Msg, max_width: usize) -> Self {
+        //	for line in text.content.bytes() {
+
+        //    line
+        //        .flat_map(|line| {
+        //            line.chars()
+        //                .collect::<Vec<char>>()
+        //                .chunks(max_width)
+        //                .map(|chunk| chunk.iter().collect::<String>())
+        //                .collect::<Vec<String>>()
+        //        })
+        //        .collect()
+        //}
+        //	//return line
+
+        self
     }
 }
 
@@ -571,7 +577,7 @@ impl App {
     }
 
     fn add_msg(msgs: &mut Vec<Msg>, msg: Msg) {
-        msgs.push(msg);
+        msgs.push(msg.clone().wrap_text(msg.clone(), 80));
     }
 
     pub fn add_msg_fn(&self) -> Box<dyn FnMut(Msg) + 'static + Send> {
@@ -832,28 +838,30 @@ impl Widget for &mut App {
         // keep 2 for borders and 1 for cursor
         let scroll = self.input.visual_scroll(width as usize);
 
-        let mut header_content = Paragraph::new(String::from("testing>>>") + &self.topic.to_string() + &String::from("<<<testing"))
-            .style(match self.input_mode {
-                InputMode::Normal => Style::default(),
-                //InputMode::Editing => Style::default().fg(Color::Cyan),
-                //InputMode::Command => Style::default().fg(Color::Yellow),
-                _ => Style::default(),
-            })
-            .scroll((0, scroll as u16))
-            .block(
-                Block::default()
-                    //.padding(Padding::uniform(1))
-                    //.padding(Padding::horizontal(2))
-                    //.padding(Padding::left(3))
-                    //.padding(Padding::proportional(1))
-                    //.padding(Padding::symmetric(5, 6))
-                    //left: u16, right: u16, top: u16, bottom: u16
-                    .padding(Padding::new(1, 1, 0, 0))
-                    //.padding(Padding::vertical(1))
-                    .borders(Borders::ALL)
-                    .title(self.topic.clone()),
-            )
-            .render(header_area, buf);
+        let mut header_content = Paragraph::new(
+            String::from("testing>>>") + &self.topic.to_string() + &String::from("<<<testing"),
+        )
+        .style(match self.input_mode {
+            InputMode::Normal => Style::default(),
+            //InputMode::Editing => Style::default().fg(Color::Cyan),
+            //InputMode::Command => Style::default().fg(Color::Yellow),
+            _ => Style::default(),
+        })
+        .scroll((0, scroll as u16))
+        .block(
+            Block::default()
+                //.padding(Padding::uniform(1))
+                //.padding(Padding::horizontal(2))
+                //.padding(Padding::left(3))
+                //.padding(Padding::proportional(1))
+                //.padding(Padding::symmetric(5, 6))
+                //left: u16, right: u16, top: u16, bottom: u16
+                .padding(Padding::new(1, 1, 0, 0))
+                //.padding(Padding::vertical(1))
+                .borders(Borders::ALL)
+                .title(self.topic.clone()),
+        )
+        .render(header_area, buf);
 
         // TOPIC_CONTENT
         let width = vertical_chunks[0].width.max(3) - 3;
@@ -874,11 +882,17 @@ impl Widget for &mut App {
                     .borders(Borders::ALL)
                     .title("TOPIC_CONTENT"),
             )
+            .wrap(Wrap { trim: true })
             .render(right_area, buf);
 
         // MESSAGES
         let height = message_area.height - 0;
         let msgs = self.messages.lock().unwrap();
+        let new_msg_list = msgs.clone();
+        for message in new_msg_list {
+
+            //println!("{}", Line::from(message.to_string()));
+        }
         let messages_vec: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
             .iter()
             .rev()
@@ -919,7 +933,7 @@ impl Widget for &mut App {
                     .title("Input2")
                     .padding(Padding::new(1, 1, 0, 0)),
             )
-            //.wrap(Wrap { trim: true })
+            .wrap(Wrap { trim: true })
             .render(input_area, buf);
 
         // MENU
