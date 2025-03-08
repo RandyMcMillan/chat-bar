@@ -492,6 +492,7 @@ fn restore_terminal() -> io::Result<()> {
 
 /// App holds the state of the application
 pub struct App {
+    topic: String,
     header_content: String,
     /// Current value of the input box
     input: Input,
@@ -507,6 +508,7 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         App {
+            topic: String::from("topic_string"),
             header_content: String::new(),
             input: Input::default(),
             input_mode: InputMode::default(),
@@ -572,29 +574,6 @@ impl App {
             Self::add_msg(&mut msgs, msg);
         })
     }
-
-    //pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-    //    // setup terminal
-    //    enable_raw_mode()?;
-    //    let mut stdout = io::stdout();
-    //    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    //    let backend = CrosstermBackend::new(stdout);
-    //    let mut terminal = Terminal::new(backend)?;
-
-    //    // run app
-    //    run_app(&mut terminal, self)?;
-
-    //    // restore terminal
-    //    disable_raw_mode()?;
-    //    execute!(
-    //        terminal.backend_mut(),
-    //        LeaveAlternateScreen,
-    //        DisableMouseCapture
-    //    )?;
-    //    terminal.show_cursor()?;
-
-    //    Ok(())
-    //}
 }
 
 #[derive(Debug, Clone)]
@@ -811,56 +790,81 @@ impl App {
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        //let width = chunks[1].width.max(3) - 3; // keep 2 for borders and 1 for cursor
-        //let scroll = self.input.visual_scroll(width as usize);
-
-        //let vertical = Layout::vertical([Length(3), Min(1), Length(3)]);
-        //let [title_area, main_area, status_area] = vertical.areas(area);
-        //let horizontal = Layout::horizontal([Fill(1); 2]);
-        //let [left_area, right_area] = horizontal.areas(main_area);
-
-        //let widget_blocks = Widget::render(
-        //Block::bordered().title("Title Bar"), title_area);
-        //Block::bordered().title("Status Bar"), status_area);
-        //Block::bordered().title("Left"), left_area);
-        //Block::bordered().title("Right"), right_area);
-        //);
-
+        // LAYOUT
         let vertical_chunks = Layout::default()
             .direction(Direction::Vertical)
-            //.margin(2)
+            .margin(0)
             .constraints(
                 [
                     Constraint::Length(1), //0 // MENU
-                    Constraint::Length(0), //1 // HEADER
+                    Constraint::Length(3), //1 // HEADER
                     Constraint::Fill(1),   //2 // MESSAGE_LIST
+                    // messages | topic content
                     Constraint::Length(3), //3 // INPUT
                 ]
                 .as_ref(),
             )
             .split(area);
 
-        let menu_area = vertical_chunks[0];
-        let header_area = vertical_chunks[1];
-        let message_area = vertical_chunks[2];
-        let input_area = vertical_chunks[3];
-        let horizontal = Layout::horizontal([Fill(0); 2]).vertical_margin(1); //messages | commit
+        let menu_area = vertical_chunks[0]; // MENU
+        let header_area = vertical_chunks[1]; // HEADER
+        let message_area = vertical_chunks[2]; // MESSAGE_LIST
+        let horizontal =                       // messages | topic content
+            Layout::horizontal([Fill(0); 2])
+            .vertical_margin(0);
         let [left_area, right_area] = horizontal.areas(message_area);
+        let input_area = vertical_chunks[3]; // INPUT
 
-        let width = vertical_chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
+        // HEADER
+        let width = vertical_chunks[0].width.max(3) - 3;
+        // keep 2 for borders and 1 for cursor
         let scroll = self.input.visual_scroll(width as usize);
 
-        //HEADER
-        let header = Paragraph::new(self.header_content.as_str())
+        let mut header_content = Paragraph::new(self.topic.as_str())
             .style(match self.input_mode {
                 InputMode::Normal => Style::default(),
-                _ => Style::default(), //InputMode::Editing => Style::default().fg(Color::Cyan),
-                                       //InputMode::Command => Style::default().fg(Color::Yellow),
+                //InputMode::Editing => Style::default().fg(Color::Cyan),
+                //InputMode::Command => Style::default().fg(Color::Yellow),
+                _ => Style::default(),
             })
             .scroll((0, scroll as u16))
-            .block(Block::default().borders(Borders::ALL).title("HEADER")) //;
+            .block(
+                Block::default()
+                    //.padding(Padding::uniform(1))
+                    //.padding(Padding::horizontal(2))
+                    //.padding(Padding::left(3))
+                    //.padding(Padding::proportional(1))
+                    //.padding(Padding::symmetric(5, 6))
+                    //left: u16, right: u16, top: u16, bottom: u16
+                    .padding(Padding::new(1, 1, 0, 0))
+                    //.padding(Padding::vertical(1))
+                    .borders(Borders::ALL)
+                    .title("HEADER"),
+            )
+            .render(header_area, buf);
+
+        // TOPIC_CONTENT
+        let width = vertical_chunks[0].width.max(3) - 3;
+        // keep 2 for borders and 1 for cursor
+        let scroll = self.input.visual_scroll(width as usize);
+
+        let mut topic_content = Paragraph::new(self.header_content.as_str())
+            .style(match self.input_mode {
+                InputMode::Normal => Style::default(),
+                //InputMode::Editing => Style::default().fg(Color::Cyan),
+                //InputMode::Command => Style::default().fg(Color::Yellow),
+                _ => Style::default(),
+            })
+            .scroll((0, scroll as u16))
+            .block(
+                Block::default()
+                    .padding(Padding::new(1, 1, 0, 0))
+                    .borders(Borders::ALL)
+                    .title("TOPIC_CONTENT"),
+            )
             .render(right_area, buf);
 
+        // MESSAGES
         let height = message_area.height - 0;
         let msgs = self.messages.lock().unwrap();
         let messages_vec: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
@@ -875,44 +879,20 @@ impl Widget for &mut App {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .padding(Padding::horizontal(1))
-                        .title("messages_vec"),
+                        .padding(Padding::new(1, 1, 0, 0))
+                        .title(self.topic.clone()),
                 )
                 .style(match self.input_mode {
                     InputMode::Normal => Style::default(),
-                    _ => Style::default(), //InputMode::Editing => Style::default().fg(Color::Cyan),
-                                           //InputMode::Command => Style::default().fg(Color::Yellow),
+                    //InputMode::Editing => Style::default().fg(Color::Cyan),
+                    //InputMode::Command => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
                 }),
             left_area,
             buf,
         );
 
-        //let height = main_area.height;
-        //let msgs = self.messages.lock().unwrap();
-        //let messages_vec: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
-        //    .iter()
-        //    .rev()
-        //    .map(|m| ListItem::new(Line::from(m)))
-        //    .take(height as usize)
-        //    .collect();
-        //let messages = Widget::render(
-        //    List::new(messages_vec)
-        //        .direction(ratatui::widgets::ListDirection::BottomToTop)
-        //        .block(
-        //            Block::default()
-        //                .borders(Borders::TOP)
-        //                .padding(Padding::horizontal(3))
-        //                .title("messages_vec"),
-        //        )
-        //        .style(match self.input_mode {
-        //            InputMode::Normal => Style::default(),
-        //            _ => Style::default(), //InputMode::Editing => Style::default().fg(Color::Cyan),
-        //                                   //InputMode::Command => Style::default().fg(Color::Yellow),
-        //        }),
-        //    right_area,
-        //    buf,
-        //);
-
+        // INPUT
         let input = Paragraph::new(self.input.value())
             .style(match self.input_mode {
                 InputMode::Normal => Style::default(),
@@ -920,10 +900,16 @@ impl Widget for &mut App {
                 InputMode::Command => Style::default().fg(Color::Yellow),
             })
             //.scroll((0, scroll as u16))
-            .block(Block::default().borders(Borders::ALL).title("Input2"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Input2")
+                    .padding(Padding::new(1, 1, 0, 0)),
+            )
             //.wrap(Wrap { trim: true })
             .render(input_area, buf);
 
+        // MENU
         // draw menu last, so it renders on top of other content
         Menu::new().render(menu_area, buf, &mut self.menu);
     }
