@@ -19,3 +19,7 @@ build:
 install:
 	@echo "Installing chat_bar"
 	cargo install --path .
+
+docs:
+	@echo "generating docs"
+	cargo d
