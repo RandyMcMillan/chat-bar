@@ -338,17 +338,18 @@ fn main() -> color_eyre::Result<()> {
     let mut topic;
     if cli_args.topic.len() > 0 {
         topic = String::from(format!("{}", cli_args.topic.clone()));
+        app.topic = topic.clone();
     } else {
         //topic = String::from(format!("{:0>64}", 0));
         for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-            app.add_message(
-                Msg::default()
-                    //.set_content(format!("{:?}", line))
-                    .set_content(format!("{:}", line))
-                    .set_kind(MsgKind::Git),
-            );
+            let message = Msg::default()
+                //no! .set_content(format!("{:?}", line))
+                .set_content(format!("{:}", line))
+                .set_kind(MsgKind::Git);
+            app.add_message(message);
         }
         topic = String::from(format!("TOPIC> {} {}", commit.id(), commit_summary));
+        app.topic = topic.clone();
         app.add_message(
             Msg::default()
                 .set_content(topic.clone())
@@ -500,7 +501,7 @@ pub struct App {
     input_mode: InputMode,
     /// History of recorded messages
     messages: Arc<Mutex<Vec<Msg>>>,
-    menu: MenuState<Action>,
+    menu: MenuState<MenuAction>,
     _on_input_enter: Option<Box<dyn FnMut(Msg)>>,
     msgs_scroll: usize,
 }
@@ -508,7 +509,7 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         App {
-            topic: String::from("topic_string"),
+            topic: String::from("..............."),
             header_content: String::new(),
             input: Input::default(),
             input_mode: InputMode::default(),
@@ -516,36 +517,42 @@ impl Default for App {
             _on_input_enter: None,
             msgs_scroll: usize::MAX,
             menu: MenuState::new(vec![
-                MenuItem::item("gnostr>", Action::Home),
+                MenuItem::item("gnostr>", MenuAction::Home),
                 MenuItem::group(
                     "File",
                     vec![
-                        MenuItem::item("New", Action::FileNew),
-                        MenuItem::item("Open", Action::FileOpen),
+                        MenuItem::item("New", MenuAction::FileNew),
+                        MenuItem::group(
+                            "Open",
+                            ["file_1.txt\nline 1\nline 2", "file_2.txt"]
+                                .iter()
+                                .map(|&f| MenuItem::item(f, MenuAction::FileOpen(f.into())))
+                                .collect(),
+                        ),
                         MenuItem::group(
                             "Open recent",
                             ["file_1.txt\nline 1\nline 2", "file_2.txt"]
                                 .iter()
-                                .map(|&f| MenuItem::item(f, Action::FileOpenRecent(f.into())))
+                                .map(|&f| MenuItem::item(f, MenuAction::FileOpenRecent(f.into())))
                                 .collect(),
                         ),
-                        MenuItem::item("Save as", Action::FileSaveAs),
-                        MenuItem::item("Exit", Action::Exit),
+                        MenuItem::item("Save as", MenuAction::FileSaveAs),
+                        MenuItem::item("Exit", MenuAction::Exit),
                     ],
                 ),
                 MenuItem::group(
                     "Edit",
                     vec![
-                        MenuItem::item("Copy", Action::EditCopy),
-                        MenuItem::item("Cut", Action::EditCut),
-                        MenuItem::item("Paste", Action::EditPaste),
+                        MenuItem::item("Copy", MenuAction::EditCopy),
+                        MenuItem::item("Cut", MenuAction::EditCut),
+                        MenuItem::item("Paste", MenuAction::EditPaste),
                     ],
                 ),
                 MenuItem::group(
                     "About",
                     vec![
-                        MenuItem::item("Author", Action::AboutAuthor),
-                        MenuItem::item("Help", Action::AboutHelp),
+                        MenuItem::item("Author", MenuAction::AboutAuthor),
+                        MenuItem::item("Help", MenuAction::AboutHelp),
                     ],
                 ),
             ]),
@@ -577,10 +584,10 @@ impl App {
 }
 
 #[derive(Debug, Clone)]
-enum Action {
+enum MenuAction {
     Home,
     FileNew,
-    FileOpen,
+    FileOpen(String),
     FileOpenRecent(String),
     FileSaveAs,
     Exit,
@@ -609,20 +616,25 @@ impl App {
             for e in self.menu.drain_events() {
                 match e {
                     MenuEvent::Selected(item) => match item {
-                        Action::Home => {
+                        MenuAction::Home => {
+                            //code block
                             self.header_content = format!("Welcome to Gnostr Chat");
                         }
-                        Action::Exit => {
+                        MenuAction::Exit => {
                             return Ok(());
                         }
-                        Action::FileNew => {
+                        MenuAction::FileNew => {
                             self.header_content.clear();
                         }
-                        Action::FileOpenRecent(file) => {
+                        MenuAction::FileOpenRecent(file) => {
                             self.header_content = format!("content of {file}");
                         }
+                        MenuAction::FileOpen(file) => {
+                            self.header_content =
+                                format!("MenuAction::FileOpen codeblock {{}} {file}");
+                        }
                         action => {
-                            self.header_content = format!("{action:?} not implemented");
+                            self.header_content = format!("ACTION {action:?} not implemented");
                         }
                     },
                 } // match e end
@@ -820,7 +832,7 @@ impl Widget for &mut App {
         // keep 2 for borders and 1 for cursor
         let scroll = self.input.visual_scroll(width as usize);
 
-        let mut header_content = Paragraph::new(self.topic.as_str())
+        let mut header_content = Paragraph::new(String::from("tesing	") + &self.topic)
             .style(match self.input_mode {
                 InputMode::Normal => Style::default(),
                 //InputMode::Editing => Style::default().fg(Color::Cyan),
@@ -839,7 +851,7 @@ impl Widget for &mut App {
                     .padding(Padding::new(1, 1, 0, 0))
                     //.padding(Padding::vertical(1))
                     .borders(Borders::ALL)
-                    .title("HEADER"),
+                    .title(self.topic.clone()),
             )
             .render(header_area, buf);
 
@@ -880,7 +892,8 @@ impl Widget for &mut App {
                     Block::default()
                         .borders(Borders::ALL)
                         .padding(Padding::new(1, 1, 0, 0))
-                        .title(self.topic.clone()),
+                        //.title(self.topic.clone()),
+                        .title("CHAT"),
                 )
                 .style(match self.input_mode {
                     InputMode::Normal => Style::default(),
