@@ -262,7 +262,7 @@ fn main() -> color_eyre::Result<()> {
     // Get the commit object that HEAD points to
     let commit = head.peel_to_commit()?;
 
-	print_commit_header(&app, &commit);
+    //print_commit_header(&app, &commit);
     // Print the commit ID (SHA-1 hash)
     //println!("Commit ID: {}", commit.id());
     //println!("Commit Summary: {:?}", commit.summary());
@@ -348,20 +348,21 @@ fn main() -> color_eyre::Result<()> {
         app.topic = topic.clone();
     } else {
         //topic = String::from(format!("{:0>64}", 0));
-        for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-            let message = Msg::default()
-                //no! .set_content(format!("{:?}", line))
-                .set_content(format!("{:}", line))
-                .set_kind(MsgKind::Git);
-            app.add_message(message);
-        }
-        topic = String::from(format!("TOPIC> {} {}", commit.id(), commit_summary));
+        //for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+        //    let message = Msg::default()
+        //        //no! .set_content(format!("{:?}", line))
+        //        .set_content(format!("{:}", line))
+        //        .set_kind(MsgKind::Git);
+        //    app.add_message(message);
+        //}
+        topic = String::from(format!("TOPIC> {}", commit.id()));
         app.topic = topic.clone();
-        app.add_message(
-            Msg::default()
-                .set_content(topic.clone())
-                .set_kind(MsgKind::Chat),
-        );
+        //app.add_message(
+        //    Msg::default()
+        //        .set_content(topic.clone())
+        //        .set_kind(MsgKind::Chat),
+        //);
+        print_commit_header(&app, &commit);
     }
 
     //app.add_message(
@@ -423,69 +424,65 @@ fn global_rt() -> &'static tokio::runtime::Runtime {
 
 //this formats and prints the commit header/message
 fn print_commit_header(app: &App, commit: &Commit) {
-
-
     println!("commit {}", commit.id());
-    app.add_message(
+    app.add_commit_message(
         Msg::default()
-            .set_content(String::from(format!("{}",commit.id())))
-            .set_kind(MsgKind::Command),
+            .set_content(String::from(format!("commit {}", commit.id())))
+            .set_kind(MsgKind::Git),
     );
 
     if commit.parents().len() > 1 {
         print!("Merge:");
-        app.add_message(
+        app.add_commit_message(
             Msg::default()
-                .set_content(String::from(format!("{}","Merge:")))
-                .set_kind(MsgKind::Command),
+                .set_content(String::from(format!("{}", "Merge:")))
+                .set_kind(MsgKind::Git),
         );
         for id in commit.parent_ids() {
-
             print!(" {:.8}", id);
-            app.add_message(
+            app.add_commit_message(
                 Msg::default()
                     .set_content(String::from(format!("{:.8}", id)))
-                    .set_kind(MsgKind::Command),
+                    .set_kind(MsgKind::Git),
             );
-
         }
         println!();
-        app.add_message(
+        app.add_commit_message(
             Msg::default()
                 .set_content(String::from(format!("{}", "")))
-                .set_kind(MsgKind::Command),
+                .set_kind(MsgKind::Git),
         );
     }
 
     let author = commit.author();
     println!("Author: {}", author);
-    app.add_message(
+    app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("Author: {}", author)))
-            .set_kind(MsgKind::Command),
+            .set_kind(MsgKind::Git),
     );
     print_time(&app, &author.when(), "Date:   ");
     println!();
-    app.add_message(
+    app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("{}", "")))
-            .set_kind(MsgKind::Command),
+            .set_kind(MsgKind::Git),
     );
 
     for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
         println!("    {}", line);
-        app.add_message(
+        app.add_commit_message(
             Msg::default()
                 .set_content(String::from(format!("    {}", line)))
-                .set_kind(MsgKind::Command),
+                .set_kind(MsgKind::Git),
         );
     }
-    println!();
-    app.add_message(
-        Msg::default()
-            .set_content(String::from(format!("{}", "")))
-            .set_kind(MsgKind::Command),
-    );
+    //println!();
+    //app.add_commit_message(
+    //    Msg::default()
+    //        .set_content(String::from(format!("{}", "")))
+    //        .set_kind(MsgKind::Git),
+    //);
 }
 
 //called from above
@@ -507,10 +504,17 @@ fn print_time(app: &App, time: &Time, prefix: &str) {
         hours,
         minutes
     );
-    app.add_message(
+    app.add_commit_message(
         Msg::default()
-            .set_content(String::from(format!("{}{} {}{:02}{:02}", prefix,time.strftime("%a %b %e %T %Y").unwrap(),sign,hours,minutes)))
-            .set_kind(MsgKind::Command),
+            .set_content(String::from(format!(
+                "{}{} {}{:02}{:02}",
+                prefix,
+                time.strftime("%a %b %e %T %Y").unwrap(),
+                sign,
+                hours,
+                minutes
+            )))
+            .set_kind(MsgKind::Git),
     );
 }
 
@@ -557,6 +561,7 @@ pub struct App {
     input_mode: InputMode,
     /// History of recorded messages
     messages: Arc<Mutex<Vec<Msg>>>,
+    commit_messages: Arc<Mutex<Vec<Msg>>>,
     menu: MenuState<MenuAction>,
     _on_input_enter: Option<Box<dyn FnMut(Msg)>>,
     msgs_scroll: usize,
@@ -570,6 +575,7 @@ impl Default for App {
             input: Input::default(),
             input_mode: InputMode::default(),
             messages: Default::default(),
+            commit_messages: Default::default(),
             _on_input_enter: None,
             msgs_scroll: usize::MAX,
             menu: MenuState::new(vec![
@@ -621,20 +627,45 @@ impl App {
         self._on_input_enter = Some(Box::new(hook));
     }
 
+    //ADD MESSAGE
+    //add_message
     pub fn add_message(&self, msg: Msg) {
         let mut msgs = self.messages.lock().unwrap();
         Self::add_msg(&mut msgs, msg);
     }
 
+    //add_msg
     fn add_msg(msgs: &mut Vec<Msg>, msg: Msg) {
         msgs.push(msg.clone().wrap_text(msg.clone(), 80));
     }
 
+    //add_msg_fn
     pub fn add_msg_fn(&self) -> Box<dyn FnMut(Msg) + 'static + Send> {
         let m = self.messages.clone();
         Box::new(move |msg| {
             let mut msgs = m.lock().unwrap();
             Self::add_msg(&mut msgs, msg);
+        })
+    }
+
+    //ADD COMMIT MESSAGE
+    //add_commit_message
+    pub fn add_commit_message(&self, msg: Msg) {
+        let mut commit_msgs = self.commit_messages.lock().unwrap();
+        Self::add_commit_msg(&mut commit_msgs, msg);
+    }
+
+    //add_commit_msg
+    fn add_commit_msg(commit_msgs: &mut Vec<Msg>, commit_msg: Msg) {
+        commit_msgs.push(commit_msg.clone().wrap_text(commit_msg.clone(), 80));
+    }
+
+    //add_commit_msg_fn
+    pub fn add_commit_msg_fn(&self) -> Box<dyn FnMut(Msg) + 'static + Send> {
+        let m = self.commit_messages.clone();
+        Box::new(move |commit_msg| {
+            let mut msgs = m.lock().unwrap();
+            Self::add_msg(&mut msgs, commit_msg);
         })
     }
 }
@@ -865,7 +896,7 @@ impl Widget for &mut App {
             .constraints(
                 [
                     Constraint::Length(1), //0 // MENU
-                    Constraint::Length(3), //1 // HEADER
+                    Constraint::Length(1), //1 // HEADER
                     Constraint::Fill(1),   //2 // MESSAGE_LIST
                     // messages | topic content
                     Constraint::Length(3), //3 // INPUT
@@ -908,41 +939,77 @@ impl Widget for &mut App {
                 //left: u16, right: u16, top: u16, bottom: u16
                 .padding(Padding::new(1, 1, 0, 0))
                 //.padding(Padding::vertical(1))
-                .borders(Borders::ALL)
+                .borders(Borders::TOP)
                 .title(self.topic.clone()),
         )
         .render(header_area, buf);
 
         // TOPIC_CONTENT
-        let width = vertical_chunks[0].width.max(3) - 3;
-        // keep 2 for borders and 1 for cursor
-        let scroll = self.input.visual_scroll(width as usize);
+        //let width = vertical_chunks[0].width.max(3) - 3;
+        //// keep 2 for borders and 1 for cursor
+        //let scroll = self.input.visual_scroll(width as usize);
 
-        let mut topic_content = Paragraph::new(self.header_content.as_str())
-            .style(match self.input_mode {
-                InputMode::Normal => Style::default(),
-                //InputMode::Editing => Style::default().fg(Color::Cyan),
-                //InputMode::Command => Style::default().fg(Color::Yellow),
-                _ => Style::default(),
-            })
-            .scroll((0, scroll as u16))
-            .block(
-                Block::default()
-                    .padding(Padding::new(1, 1, 0, 0))
-                    .borders(Borders::ALL)
-                    .title("TOPIC_CONTENT"),
-            )
-            .wrap(Wrap { trim: true })
-            .render(right_area, buf);
+        //let mut topic_content = Paragraph::new(self.header_content.as_str())
+        //    .style(match self.input_mode {
+        //        InputMode::Normal => Style::default(),
+        //        //InputMode::Editing => Style::default().fg(Color::Cyan),
+        //        //InputMode::Command => Style::default().fg(Color::Yellow),
+        //        _ => Style::default(),
+        //    })
+        //    .scroll((0, scroll as u16))
+        //    .block(
+        //        Block::default()
+        //            .padding(Padding::new(1, 1, 0, 0))
+        //            .borders(Borders::ALL)
+        //            .title("TOPIC_CONTENT"),
+        //    )
+        //    .wrap(Wrap { trim: true })
+        //    .render(right_area, buf);
+        let height = message_area.height - 0;
+        let msgs = self.commit_messages.lock().unwrap();
+        let new_msg_list = msgs.clone();
+
+        //for message
+        for message in new_msg_list {
+            //println!("{}", Line::from(message.to_string()));
+        }
+
+        let messages_vec: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
+            .iter()
+            .rev()
+            .map(|m| ListItem::new(Line::from(m)))
+            .take(height as usize)
+            .collect();
+        let messages = Widget::render(
+            List::new(messages_vec)
+                .direction(ratatui::widgets::ListDirection::BottomToTop)
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .padding(Padding::new(1, 1, 0, 0))
+                        //.title(self.topic.clone()),
+                        .title("COMMIT_CONTENT"),
+                )
+                .style(match self.input_mode {
+                    InputMode::Normal => Style::default(),
+                    //InputMode::Editing => Style::default().fg(Color::Cyan),
+                    //InputMode::Command => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),
+            right_area,
+            buf,
+        );
 
         // MESSAGES
         let height = message_area.height - 0;
         let msgs = self.messages.lock().unwrap();
         let new_msg_list = msgs.clone();
-        for message in new_msg_list {
 
+        //for message
+        for message in new_msg_list {
             //println!("{}", Line::from(message.to_string()));
         }
+
         let messages_vec: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
             .iter()
             .rev()
