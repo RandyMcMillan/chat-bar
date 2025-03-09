@@ -748,7 +748,7 @@ impl App {
                                     }
                                 } else {
                                     let m = Msg::default()
-                                        .set_content(String::from("else:command prompt testing..."));
+                                        .set_content(String::from("LINE COMMENT:\ncommand prompt testing..."));
                                     self.add_message(m.clone());
                                     if let Some(ref mut hook) = self._on_input_enter {
                                         hook(m);
@@ -771,7 +771,7 @@ impl App {
                                     }
                                 } else {
                                     let m = Msg::default()
-                                        .set_content(String::from("else>command prompt testing..."));
+                                        .set_content(String::from("LINE COMMENT REPLY>\ncommand prompt testing..."));
                                     self.add_message(m.clone());
                                     if let Some(ref mut hook) = self._on_input_enter {
                                         hook(m);
@@ -896,7 +896,9 @@ impl Widget for &mut App {
             .constraints(
                 [
                     Constraint::Length(1), //0 // MENU
-                    Constraint::Length(1), //1 // HEADER
+					//TODO HEADER Length(1) if not TOPIC commit
+                    Constraint::Length(8), //1 // HEADER
+					//TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
                     Constraint::Fill(1),   //2 // MESSAGE_LIST
                     // messages | topic content
                     Constraint::Length(3), //3 // INPUT
@@ -907,6 +909,7 @@ impl Widget for &mut App {
 
         let menu_area = vertical_chunks[0]; // MENU
         let header_area = vertical_chunks[1]; // HEADER
+		//TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
         let message_area = vertical_chunks[2]; // MESSAGE_LIST
         let horizontal =                       // messages | topic content
             Layout::horizontal([Fill(0); 2])
@@ -965,6 +968,7 @@ impl Widget for &mut App {
         //    )
         //    .wrap(Wrap { trim: true })
         //    .render(right_area, buf);
+
         let height = message_area.height - 0;
         let msgs = self.commit_messages.lock().unwrap();
         let new_msg_list = msgs.clone();
@@ -993,9 +997,10 @@ impl Widget for &mut App {
                 .style(match self.input_mode {
                     InputMode::Normal => Style::default(),
                     //InputMode::Editing => Style::default().fg(Color::Cyan),
-                    //InputMode::Command => Style::default().fg(Color::Yellow),
+                    InputMode::Command => Style::default().fg(Color::Yellow),
                     _ => Style::default(),
                 }),
+			//TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
             right_area,
             buf,
         );
@@ -1028,7 +1033,7 @@ impl Widget for &mut App {
                 )
                 .style(match self.input_mode {
                     InputMode::Normal => Style::default(),
-                    //InputMode::Editing => Style::default().fg(Color::Cyan),
+                    InputMode::Editing => Style::default().fg(Color::Cyan),
                     //InputMode::Command => Style::default().fg(Color::Yellow),
                     _ => Style::default(),
                 }),
