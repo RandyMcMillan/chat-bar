@@ -262,6 +262,7 @@ fn main() -> color_eyre::Result<()> {
     // Get the commit object that HEAD points to
     let commit = head.peel_to_commit()?;
 
+	print_commit_header(&app, &commit);
     // Print the commit ID (SHA-1 hash)
     //println!("Commit ID: {}", commit.id());
     //println!("Commit Summary: {:?}", commit.summary());
@@ -421,31 +422,75 @@ fn global_rt() -> &'static tokio::runtime::Runtime {
 }
 
 //this formats and prints the commit header/message
-fn print_commit_header(commit: &Commit) {
+fn print_commit_header(app: &App, commit: &Commit) {
+
+
     println!("commit {}", commit.id());
+    app.add_message(
+        Msg::default()
+            .set_content(String::from(format!("{}",commit.id())))
+            .set_kind(MsgKind::Command),
+    );
 
     if commit.parents().len() > 1 {
         print!("Merge:");
+        app.add_message(
+            Msg::default()
+                .set_content(String::from(format!("{}","Merge:")))
+                .set_kind(MsgKind::Command),
+        );
         for id in commit.parent_ids() {
+
             print!(" {:.8}", id);
+            app.add_message(
+                Msg::default()
+                    .set_content(String::from(format!("{:.8}", id)))
+                    .set_kind(MsgKind::Command),
+            );
+
         }
         println!();
+        app.add_message(
+            Msg::default()
+                .set_content(String::from(format!("{}", "")))
+                .set_kind(MsgKind::Command),
+        );
     }
 
     let author = commit.author();
     println!("Author: {}", author);
-    print_time(&author.when(), "Date:   ");
+    app.add_message(
+        Msg::default()
+            .set_content(String::from(format!("Author: {}", author)))
+            .set_kind(MsgKind::Command),
+    );
+    print_time(&app, &author.when(), "Date:   ");
     println!();
+    app.add_message(
+        Msg::default()
+            .set_content(String::from(format!("{}", "")))
+            .set_kind(MsgKind::Command),
+    );
 
     for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
         println!("    {}", line);
+        app.add_message(
+            Msg::default()
+                .set_content(String::from(format!("    {}", line)))
+                .set_kind(MsgKind::Command),
+        );
     }
     println!();
+    app.add_message(
+        Msg::default()
+            .set_content(String::from(format!("{}", "")))
+            .set_kind(MsgKind::Command),
+    );
 }
 
 //called from above
 //part of formatting the output
-fn print_time(time: &Time, prefix: &str) {
+fn print_time(app: &App, time: &Time, prefix: &str) {
     let (offset, sign) = match time.offset_minutes() {
         n if n < 0 => (-n, '-'),
         n => (n, '+'),
@@ -461,6 +506,11 @@ fn print_time(time: &Time, prefix: &str) {
         sign,
         hours,
         minutes
+    );
+    app.add_message(
+        Msg::default()
+            .set_content(String::from(format!("{}{} {}{:02}{:02}", prefix,time.strftime("%a %b %e %T %Y").unwrap(),sign,hours,minutes)))
+            .set_kind(MsgKind::Command),
     );
 }
 
