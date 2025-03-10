@@ -53,6 +53,7 @@ use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 
+const TOPIC: &str = "chat-bar";
 pub(crate) static USER_NAME: Lazy<String> = Lazy::new(|| {
     format!(
         "{}",
@@ -247,7 +248,6 @@ fn split_into_chunks(vec: Vec<String>, chunk_size: usize) -> Vec<Vec<String>> {
 fn main() -> color_eyre::Result<()> {
     //App
     let mut terminal = init_terminal()?;
-    //let app = App::default().run(&mut terminal)?;
     let mut app = App::default();
 
     //repo
@@ -424,7 +424,7 @@ fn global_rt() -> &'static tokio::runtime::Runtime {
 
 //this formats and prints the commit header/message
 fn print_commit_header(app: &App, commit: &Commit) {
-    println!("commit {}", commit.id());
+    //println!("commit {}", commit.id());
     app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("commit {}", commit.id())))
@@ -432,21 +432,21 @@ fn print_commit_header(app: &App, commit: &Commit) {
     );
 
     if commit.parents().len() > 1 {
-        print!("Merge:");
+        //print!("Merge:");
         app.add_commit_message(
             Msg::default()
                 .set_content(String::from(format!("{}", "Merge:")))
                 .set_kind(MsgKind::Git),
         );
         for id in commit.parent_ids() {
-            print!(" {:.8}", id);
+            //print!(" {:.8}", id);
             app.add_commit_message(
                 Msg::default()
                     .set_content(String::from(format!("{:.8}", id)))
                     .set_kind(MsgKind::Git),
             );
         }
-        println!();
+        //println!();
         app.add_commit_message(
             Msg::default()
                 .set_content(String::from(format!("{}", "")))
@@ -455,22 +455,23 @@ fn print_commit_header(app: &App, commit: &Commit) {
     }
 
     let author = commit.author();
-    println!("Author: {}", author);
+    //println!("Author: {}", author);
     app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("Author: {}", author)))
             .set_kind(MsgKind::Git),
     );
     print_time(&app, &author.when(), "Date:   ");
-    println!();
+    //println!();
     app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("{}", "")))
             .set_kind(MsgKind::Git),
     );
 
+    //commit header end
     for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-        println!("    {}", line);
+        //println!("    {}", line);
         app.add_commit_message(
             Msg::default()
                 .set_content(String::from(format!("    {}", line)))
@@ -565,6 +566,7 @@ pub struct App {
     menu: MenuState<MenuAction>,
     _on_input_enter: Option<Box<dyn FnMut(Msg)>>,
     msgs_scroll: usize,
+    commit_msgs_scroll: usize,
 }
 
 impl Default for App {
@@ -578,6 +580,7 @@ impl Default for App {
             commit_messages: Default::default(),
             _on_input_enter: None,
             msgs_scroll: usize::MAX,
+            commit_msgs_scroll: usize::MAX,
             menu: MenuState::new(vec![
                 MenuItem::item("gnostr>", MenuAction::Home),
                 MenuItem::group(
@@ -622,6 +625,22 @@ impl Default for App {
     }
 }
 
+#[derive(Debug, Clone)]
+enum MenuAction {
+    Home,
+    FileNew,
+    FileOpen(String),
+    FileOpenRecent(String),
+    FileSaveAs,
+    Exit,
+    EditCopy,
+    EditCut,
+    EditPaste,
+    AboutAuthor,
+    AboutHelp,
+}
+
+/// impl App
 impl App {
     pub fn on_submit<F: FnMut(Msg) + 'static>(&mut self, hook: F) {
         self._on_input_enter = Some(Box::new(hook));
@@ -670,21 +689,7 @@ impl App {
     }
 }
 
-#[derive(Debug, Clone)]
-enum MenuAction {
-    Home,
-    FileNew,
-    FileOpen(String),
-    FileOpenRecent(String),
-    FileSaveAs,
-    Exit,
-    EditCopy,
-    EditCut,
-    EditPaste,
-    AboutAuthor,
-    AboutHelp,
-}
-
+/// impl App::run
 impl App {
     fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         enable_raw_mode()?;
@@ -844,12 +849,14 @@ impl App {
                             }
                             KeyCode::Enter => {}
                             KeyCode::Up => {
-                                let l = self.messages.lock().unwrap().len();
-                                self.msgs_scroll = self.msgs_scroll.saturating_sub(1).min(l);
+                                let l = self.commit_messages.lock().unwrap().len();
+                                self.commit_msgs_scroll =
+                                    self.commit_msgs_scroll.saturating_sub(1).min(l);
                             }
                             KeyCode::Down => {
-                                let l = self.messages.lock().unwrap().len();
-                                self.msgs_scroll = self.msgs_scroll.saturating_add(1).min(l);
+                                let l = self.commit_messages.lock().unwrap().len();
+                                self.commit_msgs_scroll =
+                                    self.commit_msgs_scroll.saturating_add(1).min(l);
                             }
                             _ => {}
                         },
@@ -858,8 +865,10 @@ impl App {
             }
         }
     }
+    /// impl App::test_function
     pub fn test_function() -> () {}
 
+    /// impl App::on_key_event
     fn on_key_event(&mut self, key: event::KeyEvent) {
         //if !self.input_mode {
         if key.code == KeyCode::Char('c') && key.modifiers.contains(event::KeyModifiers::CONTROL) {
@@ -887,6 +896,7 @@ impl App {
     }
 }
 
+/// impl Widget for &mut App
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // LAYOUT
@@ -909,7 +919,7 @@ impl Widget for &mut App {
 
         let menu_area = vertical_chunks[0]; // MENU
         let header_area = vertical_chunks[1]; // HEADER
-		//TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
+                                              //TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
         let message_area = vertical_chunks[2]; // MESSAGE_LIST
         let horizontal =                       // messages | topic content
             Layout::horizontal([Fill(0); 2])
@@ -970,22 +980,23 @@ impl Widget for &mut App {
         //    .render(right_area, buf);
 
         let height = message_area.height - 0;
-        let msgs = self.commit_messages.lock().unwrap();
-        let new_msg_list = msgs.clone();
+        let commit_msgs = self.commit_messages.lock().unwrap();
+        let new_msg_list = commit_msgs.clone();
 
         //for message
         for message in new_msg_list {
             //println!("{}", Line::from(message.to_string()));
         }
 
-        let messages_vec: Vec<ListItem> = msgs[0..self.msgs_scroll.min(msgs.len())]
+        let commit_messages_vec: Vec<ListItem> = commit_msgs
+            [0..self.commit_msgs_scroll.min(commit_msgs.len())]
             .iter()
             .rev()
             .map(|m| ListItem::new(Line::from(m)))
             .take(height as usize)
             .collect();
-        let messages = Widget::render(
-            List::new(messages_vec)
+        let commit_messages = Widget::render(
+            List::new(commit_messages_vec)
                 .direction(ratatui::widgets::ListDirection::BottomToTop)
                 .block(
                     Block::default()
@@ -1064,8 +1075,7 @@ impl Widget for &mut App {
     }
 }
 
-const TOPIC: &str = "chat-bar";
-
+/// MyBehaviour
 // We create a custom network behaviour that combines Gossipsub and Mdns.
 #[derive(NetworkBehaviour)]
 pub struct MyBehaviour {
@@ -1073,7 +1083,7 @@ pub struct MyBehaviour {
     pub mdns: mdns::tokio::Behaviour,
 }
 
-/// mempool_url
+/// async_prompt
 pub async fn async_prompt(mempool_url: String) -> String {
     let s = tokio::spawn(async move {
         let agent: Agent = ureq::AgentBuilder::new()
@@ -1093,6 +1103,7 @@ pub async fn async_prompt(mempool_url: String) -> String {
     s.await.unwrap()
 }
 
+/// fetch_data_async
 async fn fetch_data_async(url: String) -> Result<ureq::Response, ureq::Error> {
     task::spawn_blocking(move || {
         let response = ureq::get(&url).call();
@@ -1102,6 +1113,7 @@ async fn fetch_data_async(url: String) -> Result<ureq::Response, ureq::Error> {
     .unwrap() // Handle potential join errors
 }
 
+/// evt_loop
 pub async fn evt_loop(
     mut send: tokio::sync::mpsc::Receiver<Msg>,
     recv: tokio::sync::mpsc::Sender<Msg>,
