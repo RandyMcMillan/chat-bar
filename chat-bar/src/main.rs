@@ -175,15 +175,19 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                 ),
                 m.content[0].clone().into(),
             ]),
-            Git => Line::default().spans(vec![
-                Span::styled(
-                    format!("{}", ""),
-                    Style::default()
-                        .fg(gen_color_by_hash(&m.from))
-                        .add_modifier(Modifier::ITALIC),
-                ),
-                m.content[0].clone().into(),
-            ]),
+            Git => Line::default().spans(
+                vec![
+                    Span::styled(
+                        format!("{}", m.content[0].clone()),
+                        Style::default()
+                            .fg(gen_color_by_hash(&m.from))
+                            .add_modifier(Modifier::ITALIC),
+                    ),
+                    //m.content[1].clone().into(),
+                ]
+                .iter()
+                .map(|i| format!("{}", i)),
+            ),
         }
     }
 }
@@ -292,7 +296,8 @@ fn main() -> color_eyre::Result<()> {
     //let chunks = split_into_chunks(commit_message, 2);
     // println!("{:?}", chunks); // Output: [["a
 
-    let commit_message = split_strings_in_vec(commit_message.clone(), '\n');
+    //split_strings_in_vec
+    let commit_message = split_into_chunks(commit_message.clone(), 80);
     //println!("{:?}", commit_message);
 
     //std::process::exit(0);
@@ -906,10 +911,10 @@ impl Widget for &mut App {
             .constraints(
                 [
                     Constraint::Length(1), //0 // MENU
-					//TODO HEADER Length(1) if not TOPIC commit
+                    //TODO HEADER Length(1) if not TOPIC commit
                     Constraint::Length(8), //1 // HEADER
-					//TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
-                    Constraint::Fill(1),   //2 // MESSAGE_LIST
+                    //TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
+                    Constraint::Fill(100), //2 // MESSAGE_LIST
                     // messages | topic content
                     Constraint::Length(3), //3 // INPUT
                 ]
@@ -1037,7 +1042,7 @@ impl Widget for &mut App {
                 .direction(ratatui::widgets::ListDirection::BottomToTop)
                 .block(
                     Block::default()
-                        .borders(Borders::ALL)
+                        .borders(Borders::NONE)
                         .padding(Padding::new(1, 1, 0, 0))
                         //.title(self.topic.clone()),
                         .title("CHAT"),
@@ -1066,7 +1071,7 @@ impl Widget for &mut App {
                     .title("Input2")
                     .padding(Padding::new(1, 1, 0, 0)),
             )
-            .wrap(Wrap { trim: true })
+            .wrap(Wrap { trim: true }) //trim leadingg white space
             .render(input_area, buf);
 
         // MENU
