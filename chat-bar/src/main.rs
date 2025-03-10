@@ -71,7 +71,9 @@ pub enum MsgKind {
     System,
     Raw,
     Command,
-    Git,
+    Git_Commit_Header,
+    Git_Commit_Body,
+    Git_Commit_Time,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -201,7 +203,9 @@ impl Display for Msg {
             MsgKind::System => write!(f, "[System] {}", self.content[0]),
             MsgKind::Raw => write!(f, "{}", self.content[0]),
             MsgKind::Command => write!(f, "[Command] {}:{}", self.from, self.content[0]),
-            MsgKind::Git => write!(f, "[Git] {}:{}", self.from, self.content[0]),
+            MsgKind::Git_Commit_Header => write!(f, "[Git] {}:{}", self.from, self.content[0]),
+            MsgKind::Git_Commit_Body => write!(f, "[Git] {}:{}", self.from, self.content[0]),
+            MsgKind::Git_Commit_Time => write!(f, "[Git] {}:{}", self.from, self.content[0]),
         }
     }
 }
@@ -427,68 +431,56 @@ fn global_rt() -> &'static tokio::runtime::Runtime {
     RT.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
 }
 
-//this formats and prints the commit header/message
+//this formats and prints the commit header
 fn print_commit_header(app: &App, commit: &Commit) {
-    //println!("commit {}", commit.id());
     app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("commit {}", commit.id())))
-            .set_kind(MsgKind::Git),
+            .set_kind(MsgKind::Git_Commit_Header),
     );
 
     if commit.parents().len() > 1 {
-        //print!("Merge:");
         app.add_commit_message(
             Msg::default()
                 .set_content(String::from(format!("{}", "Merge:")))
-                .set_kind(MsgKind::Git),
+                .set_kind(MsgKind::Git_Commit_Header),
         );
         for id in commit.parent_ids() {
-            //print!(" {:.8}", id);
             app.add_commit_message(
                 Msg::default()
                     .set_content(String::from(format!("{:.8}", id)))
-                    .set_kind(MsgKind::Git),
+                    .set_kind(MsgKind::Git_Commit_Header),
             );
         }
-        //println!();
         app.add_commit_message(
             Msg::default()
                 .set_content(String::from(format!("{}", "")))
-                .set_kind(MsgKind::Git),
+                .set_kind(MsgKind::Git_Commit_Header),
         );
     }
 
     let author = commit.author();
-    //println!("Author: {}", author);
     app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("Author: {}", author)))
-            .set_kind(MsgKind::Git),
+            .set_kind(MsgKind::Git_Commit_Header),
     );
     print_time(&app, &author.when(), "Date:   ");
-    //println!();
     app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("{}", "")))
-            .set_kind(MsgKind::Git),
+            .set_kind(MsgKind::Git_Commit_Header),
     );
-
-    //commit header end
+}
+//this formats and prints the commit header
+fn print_commit_body(app: &App, commit: &Commit) {
     for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-        //println!("    {}", line);
         app.add_commit_message(
             Msg::default()
                 .set_content(String::from(format!("    {}", line)))
-                .set_kind(MsgKind::Git),
+                .set_kind(MsgKind::Git_Commit_Body),
         );
     }
-    //println!();
-    //app.add_commit_message(
-    //    Msg::default()
-    //        .set_content(String::from(format!("{}", "")))
-    //        .set_kind(MsgKind::Git),
-    //);
 }
 
 //called from above
@@ -520,7 +512,7 @@ fn print_time(app: &App, time: &Time, prefix: &str) {
                 hours,
                 minutes
             )))
-            .set_kind(MsgKind::Git),
+            .set_kind(MsgKind::Git_Commit_Time),
     );
 }
 
@@ -1199,7 +1191,7 @@ pub async fn evt_loop(
                     for (peer_id, _multiaddr) in list {
                         debug!("mDNS discovered a new peer: {peer_id}");
                         swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-                        // let m = Msg::default().set_content(format!("discovered new peer: {peer_id}")).set_kind(MsgKind::System);
+                    // let m = Msg::default().set_content(format!("discovered new peer: {peer_id}")).set_kind(MsgKind::System);
                         // recv.send(m).await?;
                     }
                 },
