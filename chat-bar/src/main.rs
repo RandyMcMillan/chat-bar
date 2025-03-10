@@ -1005,7 +1005,7 @@ impl Widget for &mut App {
                 .direction(ratatui::widgets::ListDirection::BottomToTop)
                 .block(
                     Block::default()
-                        .borders(Borders::ALL)
+                        .borders(Borders::NONE)
                         .padding(Padding::new(1, 1, 0, 0))
                         //.title(self.topic.clone()),
                         .title("COMMIT_CONTENT"),
