@@ -1016,7 +1016,7 @@ impl Widget for &mut App {
                     InputMode::Command => Style::default().fg(Color::Yellow),
                     _ => Style::default(),
                 }),
-			//TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
+            // TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
             right_area,
             buf,
         );
