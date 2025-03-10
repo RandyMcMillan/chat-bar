@@ -623,7 +623,7 @@ impl Default for App {
             commit_messages: Default::default(),
             _on_input_enter: None,
             msgs_scroll: usize::MAX,
-            commit_msgs_scroll: 16 as usize, // change with layout
+            commit_msgs_scroll: 23 as usize, // change with layout
             menu: MenuState::new(vec![
                 MenuItem::item("gnostr>", MenuAction::Home),
                 MenuItem::group(
