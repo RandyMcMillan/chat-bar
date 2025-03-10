@@ -190,6 +190,45 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                 .iter()
                 .map(|i| format!("{}", i)),
             ),
+            Git_Commit_Header => Line::default().spans(
+                vec![
+                    Span::styled(
+                        format!("{}", m.content[0].clone()),
+                        Style::default()
+                            .fg(gen_color_by_hash(&m.from))
+                            .add_modifier(Modifier::ITALIC),
+                    ),
+                    m.content[1].clone().into(),
+                ]
+                .iter()
+                .map(|i| format!("{}", i)),
+            ),
+            Git_Commit_Body => Line::default().spans(
+                vec![
+                    Span::styled(
+                        format!("{}", m.content[0].clone()),
+                        Style::default()
+                            .fg(gen_color_by_hash(&m.from))
+                            .add_modifier(Modifier::ITALIC),
+                    ),
+                    m.content[1].clone().into(),
+                ]
+                .iter()
+                .map(|i| format!("{}", i)),
+            ),
+            Git_Commit_Time => Line::default().spans(
+                vec![
+                    Span::styled(
+                        format!("{}", m.content[0].clone()),
+                        Style::default()
+                            .fg(gen_color_by_hash(&m.from))
+                            .add_modifier(Modifier::ITALIC),
+                    ),
+                    m.content[1].clone().into(),
+                ]
+                .iter()
+                .map(|i| format!("{}", i)),
+            ),
         }
     }
 }
@@ -203,9 +242,15 @@ impl Display for Msg {
             MsgKind::System => write!(f, "[System] {}", self.content[0]),
             MsgKind::Raw => write!(f, "{}", self.content[0]),
             MsgKind::Command => write!(f, "[Command] {}:{}", self.from, self.content[0]),
-            MsgKind::Git_Commit_Header => write!(f, "[Git] {}:{}", self.from, self.content[0]),
-            MsgKind::Git_Commit_Body => write!(f, "[Git] {}:{}", self.from, self.content[0]),
-            MsgKind::Git_Commit_Time => write!(f, "[Git] {}:{}", self.from, self.content[0]),
+            MsgKind::Git_Commit_Header => {
+                write!(f, "[Git_Commit_Header] {}:{}", self.from, self.content[0])
+            }
+            MsgKind::Git_Commit_Body => {
+                write!(f, "[Git_Commit_Body] {}:{}", self.from, self.content[0])
+            }
+            MsgKind::Git_Commit_Time => {
+                write!(f, "[Git_Commit_Time] {}:{}", self.from, self.content[0])
+            }
         }
     }
 }
@@ -372,6 +417,7 @@ fn main() -> color_eyre::Result<()> {
         //        .set_kind(MsgKind::Chat),
         //);
         print_commit_header(&app, &commit);
+        print_commit_body(&app, &commit);
     }
 
     //app.add_message(
@@ -577,7 +623,7 @@ impl Default for App {
             commit_messages: Default::default(),
             _on_input_enter: None,
             msgs_scroll: usize::MAX,
-            commit_msgs_scroll: usize::MAX,
+            commit_msgs_scroll: 16 as usize, // change with layout
             menu: MenuState::new(vec![
                 MenuItem::item("gnostr>", MenuAction::Home),
                 MenuItem::group(
@@ -905,7 +951,7 @@ impl Widget for &mut App {
                     Constraint::Length(1), //0 // MENU
                     //TODO HEADER Length(1) if not TOPIC commit
                     Constraint::Length(8), //1 // HEADER
-                    //TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
+                    //TODO MESSAGE_LIST hide COMMIT_CONTENT if not TOPIC commit
                     Constraint::Fill(100), //2 // MESSAGE_LIST
                     // messages | topic content
                     Constraint::Length(3), //3 // INPUT
@@ -916,7 +962,7 @@ impl Widget for &mut App {
 
         let menu_area = vertical_chunks[0]; // MENU
         let header_area = vertical_chunks[1]; // HEADER
-                                              //TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
+                                              //TODO MESSAGE_LIST hide COMMIT_CONTENT if not TOPIC commit
         let message_area = vertical_chunks[2]; // MESSAGE_LIST
         let horizontal =                       // messages | topic content
             Layout::horizontal([Fill(0); 2])
@@ -997,10 +1043,10 @@ impl Widget for &mut App {
                 .direction(ratatui::widgets::ListDirection::BottomToTop)
                 .block(
                     Block::default()
-                        .borders(Borders::NONE)
+                        .borders(Borders::TOP | Borders::LEFT)
                         .padding(Padding::new(1, 1, 0, 0))
                         //.title(self.topic.clone()),
-                        .title("COMMIT_CONTENT"),
+                        .title(" COMMIT_CONTENT "),
                 )
                 .style(match self.input_mode {
                     InputMode::Normal => Style::default(),
@@ -1008,7 +1054,7 @@ impl Widget for &mut App {
                     InputMode::Command => Style::default().fg(Color::Yellow),
                     _ => Style::default(),
                 }),
-            // TODO MESSAGE_LIST hide COOMIT_CONTENT if not TOPIC commit
+            // TODO MESSAGE_LIST hide COMMIT_CONTENT if not TOPIC commit
             right_area,
             buf,
         );
@@ -1034,10 +1080,10 @@ impl Widget for &mut App {
                 .direction(ratatui::widgets::ListDirection::BottomToTop)
                 .block(
                     Block::default()
-                        .borders(Borders::NONE)
+                        .borders(Borders::TOP | Borders::RIGHT)
                         .padding(Padding::new(1, 1, 0, 0))
                         //.title(self.topic.clone()),
-                        .title("CHAT"),
+                        .title(" CHAT "),
                 )
                 .style(match self.input_mode {
                     InputMode::Normal => Style::default(),
