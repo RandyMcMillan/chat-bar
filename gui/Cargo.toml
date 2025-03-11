@@ -66,6 +66,7 @@ egui_virtual_list = { workspace = true, optional = true }
 egui_material_icons = { workspace = true, optional = true }
 
 [dev-dependencies]
+egui = { workspace = true }
 hello_egui_utils = { version = "0.8.0", features = ["example_util"] }
 egui.workspace = true
 
