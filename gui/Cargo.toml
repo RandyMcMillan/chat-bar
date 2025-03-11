@@ -54,26 +54,23 @@ material_icons = ["dep:egui_material_icons"]
 [dependencies]
 egui_animation = { workspace = true, optional = true }
 egui_dnd = { workspace = true, optional = true }
-egui_inbox = { workspace = true, optional = true }
 egui_flex = { workspace = true, optional = true }
 egui_form = { workspace = true, optional = true }
+egui_inbox = { workspace = true, optional = true }
 egui_infinite_scroll = { workspace = true, optional = true }
+egui_material_icons = { workspace = true, optional = true }
 egui_pull_to_refresh = { workspace = true, optional = true }
 egui_router = { workspace = true, optional = true }
 egui_suspense = { workspace = true, optional = true }
 egui_thumbhash = { workspace = true, optional = true }
 egui_virtual_list = { workspace = true, optional = true }
-egui_material_icons = { workspace = true, optional = true }
 
 [dev-dependencies]
 egui = { workspace = true }
 hello_egui_utils = { version = "0.8.0", features = ["example_util"] }
-egui.workspace = true
-
-
 
 [workspace]
-members = ["fancy-example", "crates/*", "scripts"]
+members = ["crates/*", "fancy-example", "scripts"]
 resolver = "2"
 
 [workspace.dependencies]
