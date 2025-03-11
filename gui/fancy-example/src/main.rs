@@ -56,219 +56,7 @@ use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 
 use fancy_example::App;
-
-
-
-const TOPIC: &str = "chat-bar";
-pub(crate) static USER_NAME: Lazy<String> = Lazy::new(|| {
-    format!(
-        "{}",
-        std::env::var("USER")
-            .unwrap_or_else(|_| hostname::get().unwrap().to_string_lossy().to_string()),
-    )
-});
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Default)]
-pub enum MsgKind {
-    #[default]
-    Chat,
-    Join,
-    Leave,
-    System,
-    Raw,
-    Command,
-    GitCommitHeader,
-    GitCommitBody,
-    GitCommitTime,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Msg {
-    pub from: String,
-    pub content: Vec<String>,
-    pub kind: MsgKind,
-}
-
-impl Default for Msg {
-    fn default() -> Self {
-        Self {
-            from: USER_NAME.clone(),
-            content: vec!["".to_string(), "".to_string()],
-            kind: MsgKind::Chat,
-        }
-    }
-}
-
-impl Msg {
-    pub fn set_kind(mut self, kind: MsgKind) -> Self {
-        self.kind = kind;
-        self
-    }
-
-    pub fn set_content(mut self, content: String) -> Self {
-        self.content[0] = content;
-        self
-    }
-    pub fn wrap_text(mut self, text: Msg, max_width: usize) -> Self {
-        //	for line in text.content.bytes() {
-
-        //    line
-        //        .flat_map(|line| {
-        //            line.chars()
-        //                .collect::<Vec<char>>()
-        //                .chunks(max_width)
-        //                .map(|chunk| chunk.iter().collect::<String>())
-        //                .collect::<Vec<String>>()
-        //        })
-        //        .collect()
-        //}
-        //	//return line
-
-        self
-    }
-}
-
-impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
-    fn from(m: &'a Msg) -> Self {
-        use ratatui::style::{Color, Modifier, Style};
-        use ratatui::text::{Line, Span};
-        use MsgKind::*;
-
-        fn gen_color_by_hash(s: &str) -> Color {
-            static LIGHT_COLORS: [Color; 5] = [
-                Color::LightMagenta,
-                Color::LightGreen,
-                Color::LightYellow,
-                Color::LightBlue,
-                Color::LightCyan,
-                // Color::White,
-            ];
-            let h = s.bytes().fold(0, |acc, b| acc ^ b as usize);
-            return LIGHT_COLORS[h % LIGHT_COLORS.len()];
-        }
-
-        match m.kind {
-            Join | Leave | System => Line::from(Span::styled(
-                m.to_string(),
-                Style::default()
-                    .fg(Color::DarkGray)
-                    .add_modifier(Modifier::ITALIC),
-            )),
-            Chat => {
-                if m.from == *USER_NAME {
-                    Line::default().left_aligned().spans(vec![
-                        Span::styled(
-                            format!("{}{} ", &m.from, ">"),
-                            Style::default().fg(gen_color_by_hash(&m.from)),
-                        ),
-                        m.content[0].clone().into(),
-                    ])
-                } else {
-                    Line::default().right_aligned().spans(vec![
-                        m.content[0].clone().into(),
-                        Span::styled(
-                            format!(" {}{}", "<", &m.from),
-                            Style::default().fg(gen_color_by_hash(&m.from)),
-                        ),
-                    ])
-                }
-            }
-            Raw => m.content[0].clone().into(),
-            Command => Line::default().spans(vec![
-                Span::styled(
-                    format!("Command: {}{} ", &m.from, ">"),
-                    Style::default()
-                        .fg(gen_color_by_hash(&m.from))
-                        .add_modifier(Modifier::ITALIC),
-                ),
-                m.content[0].clone().into(),
-            ]),
-            Git => Line::default().spans(
-                vec![
-                    Span::styled(
-                        format!("{}", m.content[0].clone()),
-                        Style::default()
-                            .fg(gen_color_by_hash(&m.from))
-                            .add_modifier(Modifier::ITALIC),
-                    ),
-                    //m.content[1].clone().into(),
-                ]
-                .iter()
-                .map(|i| format!("{}", i)),
-            ),
-            GitCommitHeader => Line::default().spans(
-                vec![
-                    Span::styled(
-                        format!("{}", m.content[0].clone()),
-                        Style::default()
-                            .fg(gen_color_by_hash(&m.from))
-                            .add_modifier(Modifier::ITALIC),
-                    ),
-                    m.content[1].clone().into(),
-                ]
-                .iter()
-                .map(|i| format!("{}", i)),
-            ),
-            GitCommitBody => Line::default().spans(
-                vec![
-                    Span::styled(
-                        format!("{}", m.content[0].clone()),
-                        Style::default()
-                            .fg(gen_color_by_hash(&m.from))
-                            .add_modifier(Modifier::ITALIC),
-                    ),
-                    m.content[1].clone().into(),
-                ]
-                .iter()
-                .map(|i| format!("{}", i)),
-            ),
-            GitCommitTime => Line::default().spans(
-                vec![
-                    Span::styled(
-                        format!("{}", m.content[0].clone()),
-                        Style::default()
-                            .fg(gen_color_by_hash(&m.from))
-                            .add_modifier(Modifier::ITALIC),
-                    ),
-                    m.content[1].clone().into(),
-                ]
-                .iter()
-                .map(|i| format!("{}", i)),
-            ),
-        }
-    }
-}
-
-impl Display for Msg {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            MsgKind::Join => write!(f, "{} join", self.from),
-            MsgKind::Leave => write!(f, "{} left", self.from),
-            MsgKind::Chat => write!(f, "{}: {}", self.from, self.content[0]),
-            MsgKind::System => write!(f, "[System] {}", self.content[0]),
-            MsgKind::Raw => write!(f, "{}", self.content[0]),
-            MsgKind::Command => write!(f, "[Command] {}:{}", self.from, self.content[0]),
-            MsgKind::GitCommitHeader => {
-                write!(f, "[GitCommitHeader] {}:{}", self.from, self.content[0])
-            }
-            MsgKind::GitCommitBody => {
-                write!(f, "[GitCommitBody] {}:{}", self.from, self.content[0])
-            }
-            MsgKind::GitCommitTime => {
-                write!(f, "[GitCommitTime] {}:{}", self.from, self.content[0])
-            }
-        }
-    }
-}
-
-#[derive(Default)]
-enum InputMode {
-    #[default]
-    Normal,
-    //#[default]
-    Editing,
-    Command,
-}
+use fancy_example::*;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -290,8 +78,126 @@ pub struct Args {
     topic: String,
 }
 
+//global_rt
+fn global_rt() -> &'static tokio::runtime::Runtime {
+    static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
+    RT.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
+}
+
+pub fn get_repo() -> color_eyre::Result<Repository> {
+    Ok(Repository::discover(".")?)
+}
+
+fn split_strings_in_vec(vec: Vec<String>, delimiter: char) -> Vec<Vec<String>> {
+    vec.into_iter()
+        .map(|s| s.split(delimiter).map(|s| s.to_string()).collect())
+        .collect()
+}
+
+fn split_into_chunks(vec: Vec<String>, chunk_size: usize) -> Vec<Vec<String>> {
+    vec.chunks(chunk_size).map(|chunk| chunk.to_vec()).collect()
+}
+
+//this formats and prints the commit header
+fn print_commit_header(app: &TuiApp, commit: &Commit) {
+    app.add_commit_message(
+        fancy_example::Msg::default()
+            .set_content(String::from(format!("commit {}", commit.id())))
+            .set_kind(fancy_example::MsgKind::GitCommitHeader),
+    );
+
+    if commit.parents().len() > 1 {
+        app.add_commit_message(
+            fancy_example::Msg::default()
+                .set_content(String::from(format!("{}", "Merge:")))
+                .set_kind(fancy_example::MsgKind::GitCommitHeader),
+        );
+        for id in commit.parent_ids() {
+            app.add_commit_message(
+                fancy_example::Msg::default()
+                    .set_content(String::from(format!("{:.8}", id)))
+                    .set_kind(fancy_example::MsgKind::GitCommitHeader),
+            );
+        }
+        app.add_commit_message(
+            fancy_example::Msg::default()
+                .set_content(String::from(format!("{}", "")))
+                .set_kind(fancy_example::MsgKind::GitCommitHeader),
+        );
+    }
+
+    let author = commit.author();
+    app.add_commit_message(
+        fancy_example::Msg::default()
+            .set_content(String::from(format!("Author: {}", author)))
+            .set_kind(fancy_example::MsgKind::GitCommitHeader),
+    );
+    print_time(&app, &author.when(), "Date:   ");
+    app.add_commit_message(
+        fancy_example::Msg::default()
+            .set_content(String::from(format!("{}", "")))
+            .set_kind(fancy_example::MsgKind::GitCommitHeader),
+    );
+}
+//this formats and prints the commit header
+fn print_commit_body(app: &TuiApp, commit: &Commit) {
+    for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+        app.add_commit_message(
+            fancy_example::Msg::default()
+                .set_content(String::from(format!("    {}", line)))
+                .set_kind(fancy_example::MsgKind::GitCommitBody),
+        );
+    }
+}
+
+//called from above
+//part of formatting the output
+fn print_time(app: &TuiApp, time: &Time, prefix: &str) {
+    let (offset, sign) = match time.offset_minutes() {
+        n if n < 0 => (-n, '-'),
+        n => (n, '+'),
+    };
+    let (hours, minutes) = (offset / 60, offset % 60);
+    let ts = time::Timespec::new(time.seconds() + (time.offset_minutes() as i64) * 60, 0);
+    let time = time::at(ts);
+
+    println!(
+        "{}{} {}{:02}{:02}",
+        prefix,
+        time.strftime("%a %b %e %T %Y").unwrap(),
+        sign,
+        hours,
+        minutes
+    );
+    app.add_commit_message(
+        fancy_example::Msg::default()
+            .set_content(String::from(format!(
+                "{}{} {}{:02}{:02}",
+                prefix,
+                time.strftime("%a %b %e %T %Y").unwrap(),
+                sign,
+                hours,
+                minutes
+            )))
+            .set_kind(fancy_example::MsgKind::GitCommitTime),
+    );
+}
+
+
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result<()> {
+
+
+    //TuiApp begin
+    let mut terminal = init_terminal().expect("init_terminal() falied!");
+    let mut app = TuiApp::default();
+
+    //repo
+    let repo = get_repo().expect("get_repo() falied!");
+
+
+	//TuiApp end
+
     use eframe::NativeOptions;
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
