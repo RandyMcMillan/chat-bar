@@ -78,110 +78,110 @@ pub struct Args {
     topic: String,
 }
 
-//global_rt
-fn global_rt() -> &'static tokio::runtime::Runtime {
-    static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
-    RT.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
-}
-
+////global_rt
+//fn global_rt() -> &'static tokio::runtime::Runtime {
+//    static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
+//    RT.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
+//}
+//
 pub fn get_repo() -> color_eyre::Result<Repository> {
     Ok(Repository::discover(".")?)
 }
-
-fn split_strings_in_vec(vec: Vec<String>, delimiter: char) -> Vec<Vec<String>> {
-    vec.into_iter()
-        .map(|s| s.split(delimiter).map(|s| s.to_string()).collect())
-        .collect()
-}
-
-fn split_into_chunks(vec: Vec<String>, chunk_size: usize) -> Vec<Vec<String>> {
-    vec.chunks(chunk_size).map(|chunk| chunk.to_vec()).collect()
-}
-
-//this formats and prints the commit header
-fn print_commit_header(app: &TuiApp, commit: &Commit) {
-    app.add_commit_message(
-        fancy_example::Msg::default()
-            .set_content(String::from(format!("commit {}", commit.id())))
-            .set_kind(fancy_example::MsgKind::GitCommitHeader),
-    );
-
-    if commit.parents().len() > 1 {
-        app.add_commit_message(
-            fancy_example::Msg::default()
-                .set_content(String::from(format!("{}", "Merge:")))
-                .set_kind(fancy_example::MsgKind::GitCommitHeader),
-        );
-        for id in commit.parent_ids() {
-            app.add_commit_message(
-                fancy_example::Msg::default()
-                    .set_content(String::from(format!("{:.8}", id)))
-                    .set_kind(fancy_example::MsgKind::GitCommitHeader),
-            );
-        }
-        app.add_commit_message(
-            fancy_example::Msg::default()
-                .set_content(String::from(format!("{}", "")))
-                .set_kind(fancy_example::MsgKind::GitCommitHeader),
-        );
-    }
-
-    let author = commit.author();
-    app.add_commit_message(
-        fancy_example::Msg::default()
-            .set_content(String::from(format!("Author: {}", author)))
-            .set_kind(fancy_example::MsgKind::GitCommitHeader),
-    );
-    print_time(&app, &author.when(), "Date:   ");
-    app.add_commit_message(
-        fancy_example::Msg::default()
-            .set_content(String::from(format!("{}", "")))
-            .set_kind(fancy_example::MsgKind::GitCommitHeader),
-    );
-}
-//this formats and prints the commit header
-fn print_commit_body(app: &TuiApp, commit: &Commit) {
-    for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-        app.add_commit_message(
-            fancy_example::Msg::default()
-                .set_content(String::from(format!("    {}", line)))
-                .set_kind(fancy_example::MsgKind::GitCommitBody),
-        );
-    }
-}
-
-//called from above
-//part of formatting the output
-fn print_time(app: &TuiApp, time: &Time, prefix: &str) {
-    let (offset, sign) = match time.offset_minutes() {
-        n if n < 0 => (-n, '-'),
-        n => (n, '+'),
-    };
-    let (hours, minutes) = (offset / 60, offset % 60);
-    let ts = time::Timespec::new(time.seconds() + (time.offset_minutes() as i64) * 60, 0);
-    let time = time::at(ts);
-
-    println!(
-        "{}{} {}{:02}{:02}",
-        prefix,
-        time.strftime("%a %b %e %T %Y").unwrap(),
-        sign,
-        hours,
-        minutes
-    );
-    app.add_commit_message(
-        fancy_example::Msg::default()
-            .set_content(String::from(format!(
-                "{}{} {}{:02}{:02}",
-                prefix,
-                time.strftime("%a %b %e %T %Y").unwrap(),
-                sign,
-                hours,
-                minutes
-            )))
-            .set_kind(fancy_example::MsgKind::GitCommitTime),
-    );
-}
+//
+//fn split_strings_in_vec(vec: Vec<String>, delimiter: char) -> Vec<Vec<String>> {
+//    vec.into_iter()
+//        .map(|s| s.split(delimiter).map(|s| s.to_string()).collect())
+//        .collect()
+//}
+//
+//fn split_into_chunks(vec: Vec<String>, chunk_size: usize) -> Vec<Vec<String>> {
+//    vec.chunks(chunk_size).map(|chunk| chunk.to_vec()).collect()
+//}
+//
+////this formats and prints the commit header
+//fn print_commit_header(app: &TuiApp, commit: &Commit) {
+//    app.add_commit_message(
+//        fancy_example::Msg::default()
+//            .set_content(String::from(format!("commit {}", commit.id())))
+//            .set_kind(fancy_example::MsgKind::GitCommitHeader),
+//    );
+//
+//    if commit.parents().len() > 1 {
+//        app.add_commit_message(
+//            fancy_example::Msg::default()
+//                .set_content(String::from(format!("{}", "Merge:")))
+//                .set_kind(fancy_example::MsgKind::GitCommitHeader),
+//        );
+//        for id in commit.parent_ids() {
+//            app.add_commit_message(
+//                fancy_example::Msg::default()
+//                    .set_content(String::from(format!("{:.8}", id)))
+//                    .set_kind(fancy_example::MsgKind::GitCommitHeader),
+//            );
+//        }
+//        app.add_commit_message(
+//            fancy_example::Msg::default()
+//                .set_content(String::from(format!("{}", "")))
+//                .set_kind(fancy_example::MsgKind::GitCommitHeader),
+//        );
+//    }
+//
+//    let author = commit.author();
+//    app.add_commit_message(
+//        fancy_example::Msg::default()
+//            .set_content(String::from(format!("Author: {}", author)))
+//            .set_kind(fancy_example::MsgKind::GitCommitHeader),
+//    );
+//    print_time(&app, &author.when(), "Date:   ");
+//    app.add_commit_message(
+//        fancy_example::Msg::default()
+//            .set_content(String::from(format!("{}", "")))
+//            .set_kind(fancy_example::MsgKind::GitCommitHeader),
+//    );
+//}
+////this formats and prints the commit header
+//fn print_commit_body(app: &TuiApp, commit: &Commit) {
+//    for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+//        app.add_commit_message(
+//            fancy_example::Msg::default()
+//                .set_content(String::from(format!("    {}", line)))
+//                .set_kind(fancy_example::MsgKind::GitCommitBody),
+//        );
+//    }
+//}
+//
+////called from above
+////part of formatting the output
+//fn print_time(app: &TuiApp, time: &Time, prefix: &str) {
+//    let (offset, sign) = match time.offset_minutes() {
+//        n if n < 0 => (-n, '-'),
+//        n => (n, '+'),
+//    };
+//    let (hours, minutes) = (offset / 60, offset % 60);
+//    let ts = time::Timespec::new(time.seconds() + (time.offset_minutes() as i64) * 60, 0);
+//    let time = time::at(ts);
+//
+//    println!(
+//        "{}{} {}{:02}{:02}",
+//        prefix,
+//        time.strftime("%a %b %e %T %Y").unwrap(),
+//        sign,
+//        hours,
+//        minutes
+//    );
+//    app.add_commit_message(
+//        fancy_example::Msg::default()
+//            .set_content(String::from(format!(
+//                "{}{} {}{:02}{:02}",
+//                prefix,
+//                time.strftime("%a %b %e %T %Y").unwrap(),
+//                sign,
+//                hours,
+//                minutes
+//            )))
+//            .set_kind(fancy_example::MsgKind::GitCommitTime),
+//    );
+//}
 
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -189,11 +189,28 @@ fn main() -> eframe::Result<()> {
 
 
     //TuiApp begin
-    let mut terminal = init_terminal().expect("init_terminal() falied!");
+    //let mut terminal = init_terminal().expect("init_terminal() falied!");
     let mut app = TuiApp::default();
 
     //repo
     let repo = get_repo().expect("get_repo() falied!");
+
+
+    //env
+    let args_vec: Vec<String> = env_args().collect();
+    trace!("Arguments:");
+    for (index, arg) in args_vec.iter().enumerate() {
+        if Some(index) == Some(0) {
+            trace!("Some(index) = Some(0):  {}: {}", index, arg);
+        } else {
+            trace!("  {}: {}", index, arg);
+        }
+    }
+
+    let cli_args = Args::parse();
+    for _ in 0..cli_args.count {
+        println!("Hello {}!", cli_args.name);
+    }
 
 
 	//TuiApp end
