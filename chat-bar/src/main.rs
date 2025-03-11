@@ -409,7 +409,7 @@ fn main() -> color_eyre::Result<()> {
         //        .set_kind(MsgKind::Git);
         //    app.add_message(message);
         //}
-        topic = String::from(format!("TOPIC> {}", commit.id()));
+        topic = String::from(format!("{}", commit.id()));
         app.topic = topic.clone();
         //app.add_message(
         //    Msg::default()
