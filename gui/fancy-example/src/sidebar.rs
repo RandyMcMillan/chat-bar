@@ -48,7 +48,7 @@ impl SideBar {
         ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
             ui.add_space(8.0);
             ui.hyperlink_to(
-                "GitHub: hello_egui",
+                "GitHub: gnostr_chat",
                 "https://github.com/lucasmerlin/hello_egui",
             );
         });
