@@ -306,6 +306,11 @@ fn main() -> color_eyre::Result<()> {
     //repo
     let repo = get_repo()?;
 
+	//TODO
+	//when --topic flag is used
+	//we check if commit is in current repo
+	//if not we create a COMMIT_CONTENT REQUEST
+
     // Get the reference to HEAD
     let head = repo.head()?;
 
