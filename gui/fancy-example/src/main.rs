@@ -213,10 +213,28 @@ fn main() -> eframe::Result<()> {
     }
 
 
+
+    debug!("cli_args.log_level {}!", cli_args.log_level.clone());
+    if cli_args.log_level.len() > 0 {
+        debug!("log_level {}!", cli_args.log_level.clone());
+
+        Builder::from_env(
+            Env::default().default_filter_or(
+                cli_args.log_level.clone() + ",libp2p_gossipsub::behaviour=error",
+            ),
+        )
+        .init();
+    } else {
+        Builder::from_env(
+            Env::default().default_filter_or("none,libp2p_gossipsub::behaviour=error"),
+        )
+        .init();
+    }
+
 	//TuiApp end
 
     use eframe::NativeOptions;
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    //env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
