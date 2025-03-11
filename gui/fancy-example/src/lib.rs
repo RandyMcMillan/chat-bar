@@ -55,11 +55,6 @@ use tui_menu::{Menu, MenuEvent, MenuItem, MenuState};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 
-
-
-
-
-
 use eframe::egui::Color32;
 use eframe::emath::lerp;
 use eframe::{egui, Frame};
@@ -242,8 +237,6 @@ fn animate_color(ui: &mut Ui, color: Color32, id: Id, duration: f32) -> Color32 
         color[3],
     )
 }
-
-
 
 const TOPIC: &str = "chat-bar";
 pub(crate) static USER_NAME: Lazy<String> = Lazy::new(|| {
@@ -544,7 +537,6 @@ impl Default for TuiApp {
     }
 }
 
-
 /// impl TuiApp
 impl TuiApp {
     pub fn on_submit<F: FnMut(Msg) + 'static>(&mut self, hook: F) {
@@ -593,7 +585,6 @@ impl TuiApp {
         })
     }
 }
-
 
 /// impl Widget for &mut TuiApp
 impl Widget for &mut TuiApp {
@@ -773,7 +764,6 @@ impl Widget for &mut TuiApp {
         Menu::new().render(menu_area, buf, &mut self.menu);
     }
 }
-
 
 /// Install panic and error hooks that restore the terminal before printing the error.
 pub fn init_hooks() -> color_eyre::Result<()> {
@@ -1010,6 +1000,3 @@ impl TuiApp {
         }
     }
 }
-
-
-

@@ -19,7 +19,7 @@ pub const EXAMPLES: &[Category] = &[
     //},
     Category {
         name: "",
-        examples: &[CHAT_EXAMPLE]//, GALLERY_EXAMPLE],
+        examples: &[CHAT_EXAMPLE], //, GALLERY_EXAMPLE],
     },
     //Category {
     //    name: "Form Validation",

@@ -183,11 +183,8 @@ pub fn get_repo() -> color_eyre::Result<Repository> {
 //    );
 //}
 
-
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result<()> {
-
-
     //TuiApp begin
     //let mut terminal = init_terminal().expect("init_terminal() falied!");
     let mut app = TuiApp::default();
@@ -195,43 +192,41 @@ fn main() -> eframe::Result<()> {
     //repo
     let repo = get_repo().expect("get_repo() falied!");
 
-
     //env
     let args_vec: Vec<String> = env_args().collect();
-    trace!("Arguments:");
+    debug!("Arguments:");
     for (index, arg) in args_vec.iter().enumerate() {
         if Some(index) == Some(0) {
-            trace!("Some(index) = Some(0):  {}: {}", index, arg);
+            debug!("Some(index) = Some(0):  {}: {}", index, arg);
         } else {
-            trace!("  {}: {}", index, arg);
+            debug!("  {}: {}", index, arg);
         }
     }
 
     let cli_args = Args::parse();
     for _ in 0..cli_args.count {
-        println!("Hello {}!", cli_args.name);
+        debug!("Hello {}!", cli_args.name);
     }
-
-
 
     debug!("cli_args.log_level {}!", cli_args.log_level.clone());
     if cli_args.log_level.len() > 0 {
         debug!("log_level {}!", cli_args.log_level.clone());
 
-        Builder::from_env(
-            Env::default().default_filter_or(
-                cli_args.log_level.clone() + ",libp2p_gossipsub::behaviour=error",
-            ),
-        )
+        Builder::from_env(Env::default().default_filter_or(
+            cli_args.log_level.clone()
+                + ",libp2p_gossipsub::behaviour=error,eframe=error,egui_glow=error",
+        ))
         .init();
     } else {
-        Builder::from_env(
-            Env::default().default_filter_or("none,libp2p_gossipsub::behaviour=error"),
-        )
+        Builder::from_env(Env::default().default_filter_or(
+            "none,libp2p_gossipsub::behaviour=error,eframe=error,egui_glow=error",
+        ))
         .init();
     }
+    debug!("cli_args.tui {}!", cli_args.tui.clone());
+    if cli_args.tui {}
 
-	//TuiApp end
+    //TuiApp end
 
     use eframe::NativeOptions;
     //env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
