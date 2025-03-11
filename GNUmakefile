@@ -5,3 +5,5 @@ chat:
 	@cargo run --manifest-path Cargo.toml --bin gnostr-chat
 chat-install:
 	@cargo install --path .
+
+-include Makefile
