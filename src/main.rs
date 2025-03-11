@@ -71,9 +71,9 @@ pub enum MsgKind {
     System,
     Raw,
     Command,
-    Git_Commit_Header,
-    Git_Commit_Body,
-    Git_Commit_Time,
+    GitCommitHeader,
+    GitCommitBody,
+    GitCommitTime,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -190,7 +190,7 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                 .iter()
                 .map(|i| format!("{}", i)),
             ),
-            Git_Commit_Header => Line::default().spans(
+            GitCommitHeader => Line::default().spans(
                 vec![
                     Span::styled(
                         format!("{}", m.content[0].clone()),
@@ -203,7 +203,7 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                 .iter()
                 .map(|i| format!("{}", i)),
             ),
-            Git_Commit_Body => Line::default().spans(
+            GitCommitBody => Line::default().spans(
                 vec![
                     Span::styled(
                         format!("{}", m.content[0].clone()),
@@ -216,7 +216,7 @@ impl<'a> From<&'a Msg> for ratatui::text::Line<'a> {
                 .iter()
                 .map(|i| format!("{}", i)),
             ),
-            Git_Commit_Time => Line::default().spans(
+            GitCommitTime => Line::default().spans(
                 vec![
                     Span::styled(
                         format!("{}", m.content[0].clone()),
@@ -242,14 +242,14 @@ impl Display for Msg {
             MsgKind::System => write!(f, "[System] {}", self.content[0]),
             MsgKind::Raw => write!(f, "{}", self.content[0]),
             MsgKind::Command => write!(f, "[Command] {}:{}", self.from, self.content[0]),
-            MsgKind::Git_Commit_Header => {
-                write!(f, "[Git_Commit_Header] {}:{}", self.from, self.content[0])
+            MsgKind::GitCommitHeader => {
+                write!(f, "[GitCommitHeader] {}:{}", self.from, self.content[0])
             }
-            MsgKind::Git_Commit_Body => {
-                write!(f, "[Git_Commit_Body] {}:{}", self.from, self.content[0])
+            MsgKind::GitCommitBody => {
+                write!(f, "[GitCommitBody] {}:{}", self.from, self.content[0])
             }
-            MsgKind::Git_Commit_Time => {
-                write!(f, "[Git_Commit_Time] {}:{}", self.from, self.content[0])
+            MsgKind::GitCommitTime => {
+                write!(f, "[GitCommitTime] {}:{}", self.from, self.content[0])
             }
         }
     }
@@ -306,10 +306,10 @@ fn main() -> color_eyre::Result<()> {
     //repo
     let repo = get_repo()?;
 
-	//TODO
-	//when --topic flag is used
-	//we check if commit is in current repo
-	//if not we create a COMMIT_CONTENT REQUEST
+    //TODO
+    //when --topic flag is used
+    //we check if commit is in current repo
+    //if not we create a COMMIT_CONTENT REQUEST
 
     // Get the reference to HEAD
     let head = repo.head()?;
@@ -487,26 +487,26 @@ fn print_commit_header(app: &App, commit: &Commit) {
     app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("commit {}", commit.id())))
-            .set_kind(MsgKind::Git_Commit_Header),
+            .set_kind(MsgKind::GitCommitHeader),
     );
 
     if commit.parents().len() > 1 {
         app.add_commit_message(
             Msg::default()
                 .set_content(String::from(format!("{}", "Merge:")))
-                .set_kind(MsgKind::Git_Commit_Header),
+                .set_kind(MsgKind::GitCommitHeader),
         );
         for id in commit.parent_ids() {
             app.add_commit_message(
                 Msg::default()
                     .set_content(String::from(format!("{:.8}", id)))
-                    .set_kind(MsgKind::Git_Commit_Header),
+                    .set_kind(MsgKind::GitCommitHeader),
             );
         }
         app.add_commit_message(
             Msg::default()
                 .set_content(String::from(format!("{}", "")))
-                .set_kind(MsgKind::Git_Commit_Header),
+                .set_kind(MsgKind::GitCommitHeader),
         );
     }
 
@@ -514,13 +514,13 @@ fn print_commit_header(app: &App, commit: &Commit) {
     app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("Author: {}", author)))
-            .set_kind(MsgKind::Git_Commit_Header),
+            .set_kind(MsgKind::GitCommitHeader),
     );
     print_time(&app, &author.when(), "Date:   ");
     app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("{}", "")))
-            .set_kind(MsgKind::Git_Commit_Header),
+            .set_kind(MsgKind::GitCommitHeader),
     );
 }
 //this formats and prints the commit header
@@ -529,7 +529,7 @@ fn print_commit_body(app: &App, commit: &Commit) {
         app.add_commit_message(
             Msg::default()
                 .set_content(String::from(format!("    {}", line)))
-                .set_kind(MsgKind::Git_Commit_Body),
+                .set_kind(MsgKind::GitCommitBody),
         );
     }
 }
@@ -563,7 +563,7 @@ fn print_time(app: &App, time: &Time, prefix: &str) {
                 hours,
                 minutes
             )))
-            .set_kind(MsgKind::Git_Commit_Time),
+            .set_kind(MsgKind::GitCommitTime),
     );
 }
 
@@ -1001,7 +1001,7 @@ impl Widget for &mut App {
                 .padding(Padding::new(1, 1, 0, 0))
                 //.padding(Padding::vertical(1))
                 .borders(Borders::TOP)
-                .title(format!(" TOPIC> {}{}",self.topic.clone(), " ")),
+                .title(format!(" TOPIC> {}{}", self.topic.clone(), " ")),
         )
         .render(header_area, buf);
 
