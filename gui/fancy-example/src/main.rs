@@ -214,12 +214,12 @@ fn main() -> eframe::Result<()> {
 
         Builder::from_env(Env::default().default_filter_or(
             cli_args.log_level.clone()
-                + ",libp2p_gossipsub::behaviour=error,eframe=error,egui_glow=error",
+                + ",libp2p_gossipsub::behaviour=error,eframe=error,egui_glow=error,egui_winit=error,egui_extras=error",
         ))
         .init();
     } else {
         Builder::from_env(Env::default().default_filter_or(
-            "none,libp2p_gossipsub::behaviour=error,eframe=error,egui_glow=error",
+            "none,libp2p_gossipsub::behaviour=error,eframe=error,egui_glow=error,egui_winit=error,egui_extras=error",
         ))
         .init();
     }

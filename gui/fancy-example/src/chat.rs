@@ -1,12 +1,12 @@
-use std::iter::repeat;
-use std::sync::Arc;
-use std::time::Duration;
-
 use eframe::emath::Vec2;
 use egui::{
     Align, CornerRadius, Frame, Label, Layout, Rect, RichText, ScrollArea, Shape, Stroke, Ui,
     UiBuilder, Widget,
 };
+use std::iter::repeat;
+use std::sync::Arc;
+use std::time::Duration;
+use tracing::debug;
 
 use egui_animation::animate_continuous;
 use egui_inbox::UiInbox;
@@ -142,7 +142,7 @@ impl ChatExample {
         infinite_scroll.virtual_list.hide_on_resize(None);
         ChatExample {
             messages: infinite_scroll.start_loader(move |cursor, cb| {
-                println!("Loading messages...");
+                debug!("Loading messages...");
                 let history_loader = history_loader_clone.clone();
                 spawn(async move {
                     let (messages, cursor) = history_loader.load(cursor).await;
