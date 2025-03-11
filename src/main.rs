@@ -64,6 +64,21 @@ pub(crate) static USER_NAME: Lazy<String> = Lazy::new(|| {
     )
 });
 
+#[derive(Debug, Clone)]
+enum MenuAction {
+    Home,
+    FileNew,
+    FileOpen(String),
+    FileOpenRecent(String),
+    FileSaveAs,
+    Exit,
+    EditCopy,
+    EditCut,
+    EditPaste,
+    AboutAuthor,
+    AboutHelp,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Default)]
 pub enum MsgKind {
     #[default]
@@ -713,20 +728,6 @@ impl Default for App {
     }
 }
 
-#[derive(Debug, Clone)]
-enum MenuAction {
-    Home,
-    FileNew,
-    FileOpen(String),
-    FileOpenRecent(String),
-    FileSaveAs,
-    Exit,
-    EditCopy,
-    EditCut,
-    EditPaste,
-    AboutAuthor,
-    AboutHelp,
-}
 
 /// impl App
 impl App {
