@@ -70,6 +70,8 @@ pub struct Args {
     count: u8,
     #[arg(short = 't', long)]
     tui: bool,
+    #[arg(short = 'g', long)]
+    gui: bool,
     #[arg(long = "cfg", default_value = "")]
     config: String,
     #[arg(long = "log_level", default_value = "")]
@@ -184,10 +186,11 @@ pub fn get_repo() -> color_eyre::Result<Repository> {
 //}
 
 #[cfg(not(target_arch = "wasm32"))]
-fn main() -> eframe::Result<()> {
+//fn main() -> eframe::Result<()> {
+fn main() -> () {
     //TuiApp begin
     //let mut terminal = init_terminal().expect("init_terminal() falied!");
-    let mut app = TuiApp::default();
+    let mut tui_app = TuiApp::default();
 
     //repo
     let repo = get_repo().expect("get_repo() falied!");
@@ -219,41 +222,60 @@ fn main() -> eframe::Result<()> {
         .init();
     } else {
         Builder::from_env(Env::default().default_filter_or(
-            "none,libp2p_gossipsub::behaviour=error,eframe=error,egui_glow=error,egui_winit=error,egui_extras=error",
+            "info,libp2p_gossipsub::behaviour=error,eframe=error,egui_glow=error,egui_winit=error,egui_extras=error",
         ))
         .init();
     }
     debug!("cli_args.tui {}!", cli_args.tui.clone());
-    if cli_args.tui {}
+    if cli_args.tui {
+        // Get the reference to HEAD
+        let head = repo.head().expect("repo.head failed!");
+        debug!("HEAD: {}", head.name().unwrap_or("HEAD"));
+
+        let (peer_tx, mut peer_rx) = tokio::sync::mpsc::channel::<Msg>(100);
+        let (input_tx, input_rx) = tokio::sync::mpsc::channel::<Msg>(100);
+
+        // let input_loop_fut = input_loop(input_tx);
+        let input_tx_clone = input_tx.clone();
+        tui_app.on_submit(move |m| {
+            debug!("sent: {:?}", m);
+            input_tx_clone.blocking_send(m).unwrap();
+        });
+    } else {
+    }
 
     //TuiApp end
+    //GuiApp begin
+    debug!("cli_args.gui {}!", cli_args.gui.clone());
+    if cli_args.gui {
+        use eframe::NativeOptions;
+        //env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    use eframe::NativeOptions;
-    //env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("Unable to create Runtime");
 
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("Unable to create Runtime");
+        // Enter the runtime so that `tokio::spawn` is available immediately.
+        let _enter = rt.enter();
 
-    // Enter the runtime so that `tokio::spawn` is available immediately.
-    let _enter = rt.enter();
-
-    // Execute the runtime in its own thread.
-    // The future doesn't have to do anything. In this example, it just sleeps forever.
-    std::thread::spawn(move || {
-        rt.block_on(async {
-            loop {
-                tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
-            }
+        // Execute the runtime in its own thread.
+        // The future doesn't have to do anything. In this example, it just sleeps forever.
+        std::thread::spawn(move || {
+            rt.block_on(async {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+                }
+            });
         });
-    });
 
-    eframe::run_native(
-        "Dnd Example App",
-        NativeOptions::default(),
-        Box::new(move |ctx| Ok(Box::new(App::new(&ctx.egui_ctx)) as Box<dyn eframe::App>)),
-    )
+        eframe::run_native(
+            "Dnd Example App",
+            NativeOptions::default(),
+            Box::new(move |ctx| Ok(Box::new(App::new(&ctx.egui_ctx)) as Box<dyn eframe::App>)),
+        );
+    } else {
+    }
 }
 
 // when compiling to web using trunk.
