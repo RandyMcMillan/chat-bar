@@ -29,3 +29,14 @@ install:
 docs:
 	@echo "generating docs"
 	cargo d
+
+default:
+	@just --list || make chat
+
+.PHONY: gui
+gui:
+	cd gui && just
+gui-install:
+	@cargo install --manifest-path gui/Cargo.toml
+
+-include Makefile

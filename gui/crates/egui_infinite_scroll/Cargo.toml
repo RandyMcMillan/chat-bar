@@ -1,0 +1,41 @@
+[package]
+name = "egui_infinite_scroll"
+version = "0.7.0"
+edition = "2021"
+authors = ["Lucas Meurer"]
+homepage = "https://lucasmerlin.github.io/hello_egui/"
+repository = "https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_infinite_scroll"
+license = "MIT"
+description = "Infinite scroll widget for egui"
+keywords = ["egui", "ui", "infinite_scroll"]
+
+[features]
+egui_extras = ["dep:egui_extras"]
+async = ["hello_egui_utils/async"]
+tokio = ["async", "hello_egui_utils/tokio"]
+
+[[example]]
+name = "infinite_scroll_table"
+required-features = ["egui_extras"]
+
+[[example]]
+name = "infinite_scroll_async"
+required-features = ["tokio"]
+
+
+[dependencies]
+egui_inbox.workspace = true
+egui_virtual_list.workspace = true
+hello_egui_utils.workspace = true
+
+egui.workspace = true
+egui_extras = { workspace = true, optional = true }
+
+[dev-dependencies]
+eframe = { workspace = true, default-features = true }
+rand.workspace = true
+
+tokio = { workspace = true, features = ["full"] }
+
+[lints]
+workspace = true

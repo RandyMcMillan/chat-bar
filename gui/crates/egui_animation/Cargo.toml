@@ -1,0 +1,22 @@
+[package]
+name = "egui_animation"
+version = "0.8.0"
+edition = "2021"
+description = "Experimental animation utilities for egui, including easing functions and a collapse view."
+license = "MIT"
+repository = "https://github.com/lucasmerlin/hello_egui"
+homepage = "https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_animation"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hello_egui_utils.workspace = true
+egui.workspace = true
+simple-easing.workspace = true
+
+[dev-dependencies]
+eframe = { workspace = true, default-features = true }
+rand.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,24 @@
+[package]
+name = "egui_webview"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[package.metadata.release]
+release = false
+
+[dependencies]
+wry = "0.45.0"
+egui.workspace = true
+egui_inbox = { workspace = true }
+
+image.workspace = true
+egui_extras = { workspace = true, features = ["image"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+[dev-dependencies]
+eframe = { workspace = true, default-features = true }
+
+[lints]
+workspace = true

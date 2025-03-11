@@ -1,0 +1,58 @@
+[package]
+name = "egui_inbox"
+version = "0.8.0"
+edition = "2021"
+description = "Utility to send messages to egui views from async functions, callbacks, etc. without having to use interior mutability."
+license = "MIT"
+repository = "https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_inbox"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+async = [
+    "dep:hello_egui_utils",
+    "hello_egui_utils/async",
+    "dep:futures-channel",
+    "dep:futures",
+]
+tokio = ["async", "hello_egui_utils/tokio"]
+egui = ["dep:egui"]
+default = ["egui"]
+broadcast = ["dep:hello_egui_utils"]
+type_inbox = ["dep:type-map", "dep:hello_egui_utils"]
+type_broadcast = ["dep:type-map", "broadcast", "dep:hello_egui_utils"]
+
+[[example]]
+name = "inbox_spawn"
+required-features = ["tokio"]
+
+[[example]]
+name = "broadcast"
+required-features = ["broadcast"]
+
+[[example]]
+name = "router_login"
+required-features = ["type_inbox", "type_broadcast", "broadcast"]
+
+
+[dependencies]
+egui = { workspace = true, optional = true }
+hello_egui_utils = { workspace = true, optional = true }
+futures-channel = { version = "0.3", optional = true }
+futures = { workspace = true, optional = true }
+# Egui uses parking_lot so we should be fine with using it too (regarding compile times).
+parking_lot = "0.12"
+
+# For TypeInbox and TypeBroadcast
+type-map = { version = "0.5.0", optional = true }
+
+[dev-dependencies]
+eframe = { workspace = true, default-features = true }
+tokio = { workspace = true, features = ["full"] }
+ehttp = { workspace = true, features = ["json"] }
+serde_json.workspace = true
+rand.workspace = true
+derive-new = "0.7"
+
+[lints]
+workspace = true

@@ -1,0 +1,34 @@
+[package]
+name = "egui_dnd"
+version = "0.12.0"
+edition = "2021"
+authors = ["Lucas Meurer"]
+repository = "https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_dnd"
+homepage = "https://lucasmerlin.github.io/hello_egui/"
+keywords = ["egui", "drag", "drop", "ui", "gui"]
+categories = ["gui"]
+description = "A drag and drop library for egui"
+license = "MIT"
+
+
+[dependencies]
+egui_animation.workspace = true
+egui.workspace = true
+simple-easing.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-time = "1"
+
+[dev-dependencies]
+egui_infinite_scroll.workspace = true
+egui_virtual_list.workspace = true
+hello_egui_utils.workspace = true
+rand.workspace = true
+
+egui_extras.workspace = true
+color-hex = "0.2.0"
+egui = { workspace = true, features = ["color-hex"] }
+eframe = { workspace = true, default-features = true }
+
+[lints]
+workspace = true

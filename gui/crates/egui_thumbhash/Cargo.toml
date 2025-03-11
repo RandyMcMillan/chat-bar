@@ -1,0 +1,36 @@
+[package]
+name = "egui_thumbhash"
+version = "0.7.0"
+edition = "2021"
+authors = ["Lucas Meurer"]
+description = "Easily use thumbhashes in egui"
+license = "MIT"
+repository = "https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_thumbhash"
+homepage = "https://lucasmerlin.github.io/hello_egui/"
+keywords = ["egui", "thumbhash", "image", "placeholder"]
+
+[dependencies]
+thumbhash = "0.1.0"
+egui = { workspace = true }
+base64 = "0.22.1"
+
+[dev-dependencies]
+eframe = { workspace = true, default-features = true }
+egui_extras = { workspace = true, default-features = true, features = [
+    "file",
+    "image",
+    "http",
+] }
+
+oxhttp = { version = "0.2.2", default-features = false, features = [
+    "client",
+    "rustls",
+    "webpki-roots",
+    "rustls-pki-types",
+] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+image.workspace = true
+
+[lints]
+workspace = true

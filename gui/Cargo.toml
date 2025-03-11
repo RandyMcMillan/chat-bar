@@ -1,62 +1,146 @@
 [package]
-name = "fancy-example"
-version = "0.1.0"
+name = "hello_egui"
+version = "0.8.0"
 edition = "2021"
-publish = false
-
-default-run = "fancy-example"
+description = "A collection of useful crates for egui."
+authors = ["Lucas Meurer"]
+license = "MIT"
+repository = "https://github.com/lucasmerlin/hello_egui"
+homepage = "https://lucasmerlin.github.io/hello_egui/"
+keywords = ["egui", "gui", "ui", "widgets"]
 
 [package.metadata.release]
-release = false
+tag-prefix = "hello_egui-"
+
+[package.metadata.docs.rs]
+all-features = true
 
 [features]
-mock = []
+all = [
+    "animation",
+    "dnd",
+    "flex",
+    "form",
+    "inbox",
+    "infinite_scroll",
+    "pull_to_refresh",
+    "router",
+    "suspense",
+    "thumbhash",
+    "virtual_list",
+]
+full = ["all", "async", "tokio"]
+
+animation = ["dep:egui_animation"]
+async = [
+    "egui_suspense/async",
+    "egui_infinite_scroll/async",
+    "egui_router/async",
+    "egui_inbox/async",
+]
+dnd = ["dep:egui_dnd"]
+flex = ["dep:egui_flex"]
+form = ["dep:egui_form"]
+inbox = ["dep:egui_inbox"]
+infinite_scroll = ["dep:egui_infinite_scroll"]
+pull_to_refresh = ["dep:egui_pull_to_refresh"]
+router = ["dep:egui_router"]
+suspense = ["dep:egui_suspense"]
+thumbhash = ["dep:egui_thumbhash"]
+tokio = ["egui_suspense/tokio", "egui_infinite_scroll/tokio"]
+virtual_list = ["dep:egui_virtual_list"]
+material_icons = ["dep:egui_material_icons"]
 
 [dependencies]
-egui_animation.workspace = true
-egui_dnd.workspace = true
-egui_form = { workspace = true, features = ["validator_validator"] }
-egui_inbox.workspace = true
-egui_infinite_scroll.workspace = true
-egui_pull_to_refresh.workspace = true
-egui_thumbhash.workspace = true
-egui_router.workspace = true
-egui_flex.workspace = true
-hello_egui_utils.workspace = true
-
-egui = { workspace = true, features = ["color-hex"] }
-eframe = { workspace = true, default-features = true }
-egui_extras = { workspace = true, features = ["http", "image", "all_loaders"] }
-ehttp.workspace = true
-thumbhash = "0.1.0"
-
-image = { workspace = true, features = ["jpeg", "png", "webp"] }
-
-wasm-bindgen = "0.2.100"
-wasm-bindgen-futures = "0.4.50"
-
-serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
-
-casey = "0.4.2"
-
-egui_commonmark = { version = "0.20.0", features = [] }
-
-validator = { version = "0.20.0", features = ["derive"] }
-env_logger = "0.11"
+egui_animation = { workspace = true, optional = true }
+egui_dnd = { workspace = true, optional = true }
+egui_inbox = { workspace = true, optional = true }
+egui_flex = { workspace = true, optional = true }
+egui_form = { workspace = true, optional = true }
+egui_infinite_scroll = { workspace = true, optional = true }
+egui_pull_to_refresh = { workspace = true, optional = true }
+egui_router = { workspace = true, optional = true }
+egui_suspense = { workspace = true, optional = true }
+egui_thumbhash = { workspace = true, optional = true }
+egui_virtual_list = { workspace = true, optional = true }
+egui_material_icons = { workspace = true, optional = true }
 
 [dev-dependencies]
-fancy-example = { path = ".", features = ["mock"] }
-egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
-eframe = { workspace = true, features = ["wgpu"] }
+hello_egui_utils = { version = "0.8.0", features = ["example_util"] }
+egui.workspace = true
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { workspace = true, features = ["time", "rt", "macros"] }
-ureq = "2"
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen-futures = "0.4.50"
-gloo-timers = { version = "0.3.0", features = ["futures"] }
 
-[lints]
-workspace = true
+[workspace]
+members = ["fancy-example", "crates/*", "scripts"]
+resolver = "2"
+
+[workspace.dependencies]
+egui_dnd = { path = "./crates/egui_dnd", version = "0.12.0" }
+egui_animation = { path = "./crates/egui_animation", version = "0.8.0" }
+hello_egui_utils = { path = "./crates/hello_egui_utils", version = "0.8.0" }
+egui_flex = { path = "./crates/egui_flex", version = "0.3.0" }
+egui_form = { path = "./crates/egui_form", version = "0.5.0" }
+egui_inbox = { path = "./crates/egui_inbox", version = "0.8.0" }
+egui_pull_to_refresh = { path = "./crates/egui_pull_to_refresh", version = "0.8.0" }
+egui_router = { path = "./crates/egui_router", version = "0.4.0" }
+egui_suspense = { path = "./crates/egui_suspense", version = "0.8.0" }
+egui_virtual_list = { path = "./crates/egui_virtual_list", version = "0.7.0" }
+egui_infinite_scroll = { path = "./crates/egui_infinite_scroll", version = "0.7.0" }
+egui_thumbhash = { path = "./crates/egui_thumbhash", version = "0.7.0" }
+egui_material_icons = { path = "./crates/egui_material_icons", version = "0.3.0" }
+hello_egui = { path = ".", version = "0.8.0" }
+
+egui = { version = "0.31.0", default-features = false }
+egui_kittest = { version = "0.31" }
+eframe = { version = "0.31.0", default-features = false }
+egui_extras = { version = "0.31.0", default-features = false }
+rand = "0.9.0"
+simple-easing = "1"
+serde_json = "1"
+ehttp = "0.5.0"
+tokio = "1"
+futures = "0.3"
+serde = "1"
+image = "0.25"
+log = "0.4"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "deny", priority = 1 }
+enum_glob_use = { level = "deny", priority = 2 }
+perf = { level = "warn", priority = 3 }
+style = { level = "warn", priority = 4 }
+# TODO: Uncomment/Deny the following lines when the clippy lints are fixed
+# unwrap_used = { level = "deny", priority = 100 }
+#expect_used = { level = "deny", priority = 101 }
+module_name_repetitions = { level = "allow", priority = 10 }
+cast_precision_loss = { level = "allow", priority = 11 }
+cast_possible_truncation = { level = "allow", priority = 12 }
+cast_sign_loss = { level = "allow", priority = 13 }
+float_cmp = { level = "allow", priority = 14 }
+struct_excessive_bools = { level = "allow", priority = 15 }
+must_use_candidate = { level = "allow", priority = 16 }
+return_self_not_must_use = { level = "allow", priority = 17 }
+missing_panics_doc = { level = "allow", priority = 18 }
+missing_errors_doc = { level = "allow", priority = 19 }
+missing_fields_in_debug = { level = "allow", priority = 20 }
+doc_markdown = { level = "allow", priority = 21 }
+
+[patch.crates-io]
+#wry = { path = "../../RustroverProjects/github/wry" }
+#
+#egui = { path = "../../IdeaProjects/egui/crates/egui" }
+#eframe = { path = "../../IdeaProjects/egui/crates/eframe" }
+#egui-wgpu = { path = "../../IdeaProjects/egui/crates/egui-wgpu" }
+#egui_extras = { path = "../../IdeaProjects/egui/crates/egui_extras" }
+#egui_kittest = { path = "../../IdeaProjects/egui/crates/egui_kittest" }
+#winit = { path = "../../IdeaProjects/github/winit" }
+
+
+# egui = { git = "https://github.com/emilk/egui", branch = "master" }
+# eframe = { git = "https://github.com/emilk/egui", branch = "master" }
+# egui_extras = { git = "https://github.com/emilk/egui", branch = "master" }
+# egui_kittest = { git = "https://github.com/emilk/egui", branch = "master" }

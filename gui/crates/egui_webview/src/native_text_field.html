@@ -1,0 +1,39 @@
+<head>
+    <style>
+        head, body, #input {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #input {
+            resize: none;
+            border: transparent 2px solid;
+        }
+
+        #input:hover, #input:focus {
+            border: darkgray 2px solid;
+        }
+    </style>
+    <script>
+        function set_text(text) {
+            document.getElementById("input").value = text;
+        }
+
+        window.addEventListener("focusout", () => {
+            window.ipc.postMessage(JSON.stringify({"type": "FocusOut"}));
+        });
+
+        window.addEventListener("focus", () => {
+            document.getElementById("input").focus();
+        })
+
+    </script>
+</head>
+<body>
+<_tag _parameters autofocus id="input" oninput="window.ipc.postMessage(JSON.stringify({
+    type: 'Input'   ,
+    'text': this.value
+}))"></_tag>
+</body>

@@ -1,0 +1,11 @@
+[package]
+name = "scripts"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[package.metadata.release]
+release = false
+
+[dependencies]
+cargo_metadata = "0.19.1"
