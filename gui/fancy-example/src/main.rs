@@ -226,6 +226,7 @@ fn main() -> () {
         ))
         .init();
     }
+
     debug!("cli_args.tui {}!", cli_args.tui.clone());
     if cli_args.tui {
         // Get the reference to HEAD
@@ -241,6 +242,73 @@ fn main() -> () {
             debug!("sent: {:?}", m);
             input_tx_clone.blocking_send(m).unwrap();
         });
+
+        //topic
+        //println!("cli_args.topic {}!", cli_args.topic);
+        let topic;
+        if cli_args.topic.len() > 0 {
+            topic = String::from(format!("{}", cli_args.topic.clone()));
+
+            //let search_oid = Oid::from_str("your_commit_oid_here")?; // Replace with the commit OID you're looking for.
+
+            let mut revwalk = repo.revwalk()?;
+            revwalk.push_head()?; // Start from HEAD
+            revwalk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?; // Order commits
+
+            //for oid in revwalk {
+            let search_oid = Oid::from_str(&topic.clone()).unwrap();
+            let commit = repo.find_commit(search_oid)?;
+            if commit.id() == search_oid {
+                tui_app.add_message(
+                    Msg::default()
+                        .set_content(String::from(format!("Found commit: {}", commit.id())))
+                        .set_kind(MsgKind::GitCommitHeader),
+                );
+                tui_app.add_message(
+                    Msg::default()
+                        .set_content(String::from(format!("Found commit: {}", commit.author())))
+                        .set_kind(MsgKind::GitCommitHeader),
+                );
+                tui_app.add_message(
+                    Msg::default()
+                        .set_content(String::from(format!(
+                            "Found commit: {:?}",
+                            commit.summary().unwrap()
+                        )))
+                        .set_kind(MsgKind::GitCommitHeader),
+                );
+            } else {
+                tui_app.add_message(
+                    Msg::default()
+                        .set_content(String::from(format!(
+                            "----Commit: {} not found.",
+                            commit.id()
+                        )))
+                        .set_kind(MsgKind::GitCommitHeader),
+                );
+            }
+            //}
+
+            tui_app.topic = topic.clone();
+        } else {
+            //topic = String::from(format!("{:0>64}", 0));
+            //for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+            //    let message = Msg::default()
+            //        //no! .set_content(format!("{:?}", line))
+            //        .set_content(format!("{:}", line))
+            //        .set_kind(MsgKind::Git);
+            //    tui_app.add_message(message);
+            //}
+            topic = String::from(format!("{}", commit.id()));
+            tui_app.topic = topic.clone();
+            //tui_app.add_message(
+            //    Msg::default()
+            //        .set_content(topic.clone())
+            //        .set_kind(MsgKind::Chat),
+            //);
+            print_commit_header(&tui_app, &commit);
+            print_commit_body(&tui_app, &commit);
+        }
     } else {
     }
 
