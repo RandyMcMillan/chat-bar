@@ -628,7 +628,7 @@ impl Default for App {
             commit_messages: Default::default(),
             _on_input_enter: None,
             msgs_scroll: 0 as usize,
-            commit_msgs_scroll: 16 as usize, // change with layout
+            commit_msgs_scroll: 14 as usize, // change with layout
             menu: MenuState::new(vec![
                 MenuItem::item("gnostr>", MenuAction::Home),
                 MenuItem::group(
@@ -1001,7 +1001,7 @@ impl Widget for &mut App {
                 .padding(Padding::new(1, 1, 0, 0))
                 //.padding(Padding::vertical(1))
                 .borders(Borders::TOP)
-                .title(self.topic.clone()),
+                .title(format!(" TOPIC> {}{}",self.topic.clone(), " ")),
         )
         .render(header_area, buf);
 
