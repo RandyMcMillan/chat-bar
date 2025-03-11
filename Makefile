@@ -3,12 +3,12 @@ export LIBP2P_MDNS_SERVICE_NAME = _bar._tcp.local
 USER:=$(shell date +%s%3)
 export USER
 
-chat_bar:
-	@echo "Running chat-bar"
-	@USER=${USER} cargo run --bin chat-bar
+gnostr_chat:
+	@echo "Running gnostr-chat"
+	@USER=${USER} cargo run --bin gnostr-chat
 
 chat_user:
-	@USER=${USER} cargo run --bin chat-bar -- --topic chat_user
+	@USER=${USER} cargo run --bin gnostr-chat -- --topic chat_user
 
 basic:
 	@echo "Running basic"

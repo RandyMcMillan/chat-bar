@@ -1,7 +1,7 @@
 default:
 	@just --list || make chat
 chat:
-	@cargo b --manifest-path chat-bar/Cargo.toml
-	@cargo run --manifest-path chat-bar/Cargo.toml --bin chat-bar
+	@cargo b --manifest-path Cargo.toml
+	@cargo run --manifest-path Cargo.toml --bin gnostr-chat
 chat-install:
-	@cargo install --path chat-bar
+	@cargo install --path .
