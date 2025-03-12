@@ -516,9 +516,10 @@ fn main() -> eframe::Result<()> {
 
     //TuiApp end
     //GuiApp begin
+    //GuiApp begin
     debug!("cli_args.gui {}!", cli_args.gui.clone());
     if cli_args.gui {
-        use eframe::NativeOptions;
+        //use eframe::NativeOptions;
         //env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -539,13 +540,14 @@ fn main() -> eframe::Result<()> {
             });
         });
 
-    //}else{}
-        eframe::run_native(
+        return eframe::run_native(
             "Dnd Example App",
-            eframe::NativeOptions::default(),
+			eframe::NativeOptions::default(),
             Box::new(move |ctx| Ok(Box::new(App::new(&ctx.egui_ctx)) as Box<dyn eframe::App>)),
         )
-    }//else{}
+	} else {
+		return Ok(())
+	}
 }
 // when compiling to web using trunk.
 #[cfg(target_arch = "wasm32")]
