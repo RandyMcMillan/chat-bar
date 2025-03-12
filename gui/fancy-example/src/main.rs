@@ -164,6 +164,7 @@ pub async fn evt_loop(
         .build();
 
     // subscribes to our topic
+	println!("swarm.behaviour_mut().gossipsub.subscribe(&topic) = {}", &topic);
     swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
 
     // Listen on all interfaces and whatever port the OS assigns
@@ -400,7 +401,7 @@ fn main() -> eframe::Result<()> {
         });
 
         //topic
-        //println!("cli_args.topic {}!", cli_args.topic);
+        println!("cli_args.topic {}", cli_args.topic);
         let topic;
         if cli_args.topic.len() > 0 {
             topic = String::from(format!("{}", cli_args.topic.clone()));
@@ -414,6 +415,7 @@ fn main() -> eframe::Result<()> {
                 .expect("revwalk.set_sorting"); // Order commits
 
             //for oid in revwalk {
+            println!("search_oid {}", topic);
             let search_oid = Oid::from_str(&topic.clone()).unwrap();
             let commit = repo.find_commit(search_oid).expect("repo.find_commit");
             if commit.id() == search_oid {
@@ -435,7 +437,9 @@ fn main() -> eframe::Result<()> {
                         )))
                         .set_kind(MsgKind::GitCommitHeader),
                 );
-            } else {
+
+            tui_app.topic = topic.clone();
+            } else {// not if commit.id() == search_oid
                 tui_app.add_message(
                     Msg::default()
                         .set_content(String::from(format!(
@@ -445,10 +449,8 @@ fn main() -> eframe::Result<()> {
                         .set_kind(MsgKind::GitCommitHeader),
                 );
             }
-            //}
 
-            tui_app.topic = topic.clone();
-        } else {
+        } else { //not cli_args.topic.len() > 0 {
             //topic = String::from(format!("{:0>64}", 0));
             //for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
             //    let message = Msg::default()
@@ -468,9 +470,9 @@ fn main() -> eframe::Result<()> {
             print_commit_body(&tui_app, &commit);
         }
 
-        //debug!("{}", topic);
-        let topic = gossipsub::IdentTopic::new(format!("{}", topic));
-        //debug!("{}", topic);
+        println!("{}", tui_app.topic);
+        let topic = gossipsub::IdentTopic::new(format!("{}", tui_app.topic));
+        debug!("gossipsup topic={}", topic);
         global_rt().spawn(async move {
             evt_loop(input_rx, peer_tx, topic).await.unwrap();
         });
