@@ -372,7 +372,7 @@ fn main() -> eframe::Result<()> {
         .init();
     } else {
         Builder::from_env(Env::default().default_filter_or(
-            "info,libp2p_gossipsub::behaviour=error,eframe=error,egui_glow=error,egui_winit=error,egui_extras=error",
+            "none,libp2p_gossipsub::behaviour=error,eframe=error,egui_glow=error,egui_winit=error,egui_extras=error",
         ))
         .init();
     }
