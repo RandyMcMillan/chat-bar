@@ -198,9 +198,9 @@ impl ChatExample {
                         ui.spinner();
                     });
 
-                    let max_msg_width = ui.available_width() - 40.0;
-                    let inner_margin = 8.0;
-                    let outer_margin = 8.0;
+                    let max_msg_width = ui.available_width() - 0.0;
+                    let inner_margin = 0.0;
+                    let outer_margin = 0.0;
 
                     self.messages.ui(ui, 5, |ui, _index, item| {
                         let is_message_from_myself = item.from.is_none();

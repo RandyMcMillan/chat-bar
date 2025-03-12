@@ -80,116 +80,265 @@ pub struct Args {
     topic: String,
 }
 
-////global_rt
-//fn global_rt() -> &'static tokio::runtime::Runtime {
-//    static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
-//    RT.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
-//}
-//
+/// MyBehaviour
+// We create a custom network behaviour that combines Gossipsub and Mdns.
+#[derive(NetworkBehaviour)]
+pub struct MyBehaviour {
+    pub gossipsub: gossipsub::Behaviour,
+    pub mdns: mdns::tokio::Behaviour,
+}
+
+/// async_prompt
+pub async fn async_prompt(mempool_url: String) -> String {
+    let s = tokio::spawn(async move {
+        let agent: Agent = ureq::AgentBuilder::new()
+            .timeout_read(Duration::from_secs(10))
+            .timeout_write(Duration::from_secs(10))
+            .build();
+        let body: String = agent
+            .get(&mempool_url)
+            .call()
+            .expect("")
+            .into_string()
+            .expect("mempool_url:body:into_string:fail!");
+
+        body
+    });
+
+    s.await.unwrap()
+}
+
+/// evt_loop
+pub async fn evt_loop(
+    mut send: tokio::sync::mpsc::Receiver<Msg>,
+    recv: tokio::sync::mpsc::Sender<Msg>,
+    topic: gossipsub::IdentTopic,
+) -> Result<(), Box<dyn Error>> {
+    let mut swarm = libp2p::SwarmBuilder::with_new_identity()
+        .with_tokio()
+        .with_tcp(
+            tcp::Config::default(),
+            noise::Config::new,
+            yamux::Config::default,
+        )?
+        .with_quic()
+        .with_behaviour(|key| {
+            // NOTE: To content-address message,
+            // we can take the hash of message
+            // and use it as an ID.
+            // This is used to deduplicate messages.
+            //
+            // let message_id_fn = |message: &gossipsub::Message| {
+            //     let mut s = DefaultHasher::new();
+            //     message.data.hash(&mut s);
+            //     gossipsub::MessageId::from(s.finish().to_string())
+            // };
+
+            // Set a custom gossipsub configuration
+            let gossipsub_config = gossipsub::ConfigBuilder::default()
+                .heartbeat_interval(Duration::from_secs(10))
+                // This is set to aid debugging by not cluttering the log space
+                .validation_mode(gossipsub::ValidationMode::Strict)
+                // This sets the kind of message validation.
+                // The default is Strict (enforce message signing)
+                // .message_id_fn(message_id_fn)
+                // content-address messages.
+                // No two messages of the same content will be propagated.
+                .build()
+                .map_err(|msg| io::Error::new(io::ErrorKind::Other, msg))?;
+            // Temporary hack because `build` does not return a proper `std::error::Error`.
+
+            // build a gossipsub network behaviour
+            let gossipsub = gossipsub::Behaviour::new(
+                gossipsub::MessageAuthenticity::Signed(key.clone()),
+                gossipsub_config,
+            )?;
+
+            let mdns = libp2p::mdns::tokio::Behaviour::new(
+                libp2p::mdns::Config::default(),
+                key.public().to_peer_id(),
+            )?;
+            Ok(MyBehaviour { gossipsub, mdns })
+        })?
+        .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
+        .build();
+
+    // subscribes to our topic
+    swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
+
+    // Listen on all interfaces and whatever port the OS assigns
+    swarm.listen_on("/ip4/0.0.0.0/udp/0/quic-v1".parse()?)?;
+    swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+
+    debug!("Enter messages via STDIN and they will be sent to connected peers using Gossipsub");
+
+    // Kick it off
+    loop {
+        select! {
+            Some(m) = send.recv() => {
+                if let Err(e) = swarm
+                    .behaviour_mut().gossipsub
+                    .publish(topic.clone(), serde_json::to_vec(&m)?) {
+                    warn!("Publish error: {e:?}");
+                    let m = Msg::default().set_content(format!("publish error: {e:?}")).set_kind(MsgKind::System);
+                    recv.send(m).await?;
+                }
+            }
+            event = swarm.select_next_some() => match event {
+                SwarmEvent::Behaviour(MyBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
+                    for (peer_id, _multiaddr) in list {
+                        debug!("mDNS discovered a new peer: {peer_id}");
+                        swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                    // let m = Msg::default().set_content(format!("discovered new peer: {peer_id}")).set_kind(MsgKind::System);
+                        // recv.send(m).await?;
+                    }
+                },
+                SwarmEvent::Behaviour(MyBehaviourEvent::Mdns(mdns::Event::Expired(list))) => {
+                    for (peer_id, _multiaddr) in list {
+                        debug!("mDNS discover peer has expired: {peer_id}");
+                        swarm.behaviour_mut().gossipsub.remove_explicit_peer(&peer_id);
+                        // let m = Msg::default().set_content(format!("peer expired: {peer_id}")).set_kind(MsgKind::System);
+                        // recv.send(m).await?;
+                    }
+                },
+                SwarmEvent::Behaviour(MyBehaviourEvent::Gossipsub(gossipsub::Event::Message {
+                    propagation_source: peer_id,
+                    message_id: id,
+                    message,
+                })) => {
+                    debug!(
+                        "Got message: '{}' with id: {id} from peer: {peer_id}",
+                        String::from_utf8_lossy(&message.data),
+                    );
+                    match serde_json::from_slice::<Msg>(&message.data) {
+                        Ok(msg) => {
+                            recv.send(msg).await?;
+                        },
+                        Err(e) => {
+                            warn!("Error deserializing message: {e:?}");
+                            let m = Msg::default().set_content(format!("Error deserializing message: {e:?}")).set_kind(MsgKind::System);
+                            recv.send(m).await?;
+                        }
+                    }
+                },
+                SwarmEvent::NewListenAddr { address, .. } => {
+                    debug!("Local node is listening on {address}");
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+//global_rt
+fn global_rt() -> &'static tokio::runtime::Runtime {
+    static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
+    RT.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
+}
+
 pub fn get_repo() -> color_eyre::Result<Repository> {
     Ok(Repository::discover(".")?)
 }
-//
-//fn split_strings_in_vec(vec: Vec<String>, delimiter: char) -> Vec<Vec<String>> {
-//    vec.into_iter()
-//        .map(|s| s.split(delimiter).map(|s| s.to_string()).collect())
-//        .collect()
-//}
-//
-//fn split_into_chunks(vec: Vec<String>, chunk_size: usize) -> Vec<Vec<String>> {
-//    vec.chunks(chunk_size).map(|chunk| chunk.to_vec()).collect()
-//}
-//
-////this formats and prints the commit header
-//fn print_commit_header(app: &TuiApp, commit: &Commit) {
-//    app.add_commit_message(
-//        fancy_example::Msg::default()
-//            .set_content(String::from(format!("commit {}", commit.id())))
-//            .set_kind(fancy_example::MsgKind::GitCommitHeader),
-//    );
-//
-//    if commit.parents().len() > 1 {
-//        app.add_commit_message(
-//            fancy_example::Msg::default()
-//                .set_content(String::from(format!("{}", "Merge:")))
-//                .set_kind(fancy_example::MsgKind::GitCommitHeader),
-//        );
-//        for id in commit.parent_ids() {
-//            app.add_commit_message(
-//                fancy_example::Msg::default()
-//                    .set_content(String::from(format!("{:.8}", id)))
-//                    .set_kind(fancy_example::MsgKind::GitCommitHeader),
-//            );
-//        }
-//        app.add_commit_message(
-//            fancy_example::Msg::default()
-//                .set_content(String::from(format!("{}", "")))
-//                .set_kind(fancy_example::MsgKind::GitCommitHeader),
-//        );
-//    }
-//
-//    let author = commit.author();
-//    app.add_commit_message(
-//        fancy_example::Msg::default()
-//            .set_content(String::from(format!("Author: {}", author)))
-//            .set_kind(fancy_example::MsgKind::GitCommitHeader),
-//    );
-//    print_time(&app, &author.when(), "Date:   ");
-//    app.add_commit_message(
-//        fancy_example::Msg::default()
-//            .set_content(String::from(format!("{}", "")))
-//            .set_kind(fancy_example::MsgKind::GitCommitHeader),
-//    );
-//}
-////this formats and prints the commit header
-//fn print_commit_body(app: &TuiApp, commit: &Commit) {
-//    for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-//        app.add_commit_message(
-//            fancy_example::Msg::default()
-//                .set_content(String::from(format!("    {}", line)))
-//                .set_kind(fancy_example::MsgKind::GitCommitBody),
-//        );
-//    }
-//}
-//
-////called from above
-////part of formatting the output
-//fn print_time(app: &TuiApp, time: &Time, prefix: &str) {
-//    let (offset, sign) = match time.offset_minutes() {
-//        n if n < 0 => (-n, '-'),
-//        n => (n, '+'),
-//    };
-//    let (hours, minutes) = (offset / 60, offset % 60);
-//    let ts = time::Timespec::new(time.seconds() + (time.offset_minutes() as i64) * 60, 0);
-//    let time = time::at(ts);
-//
-//    println!(
-//        "{}{} {}{:02}{:02}",
-//        prefix,
-//        time.strftime("%a %b %e %T %Y").unwrap(),
-//        sign,
-//        hours,
-//        minutes
-//    );
-//    app.add_commit_message(
-//        fancy_example::Msg::default()
-//            .set_content(String::from(format!(
-//                "{}{} {}{:02}{:02}",
-//                prefix,
-//                time.strftime("%a %b %e %T %Y").unwrap(),
-//                sign,
-//                hours,
-//                minutes
-//            )))
-//            .set_kind(fancy_example::MsgKind::GitCommitTime),
-//    );
-//}
+
+fn split_strings_in_vec(vec: Vec<String>, delimiter: char) -> Vec<Vec<String>> {
+    vec.into_iter()
+        .map(|s| s.split(delimiter).map(|s| s.to_string()).collect())
+        .collect()
+}
+
+fn split_into_chunks(vec: Vec<String>, chunk_size: usize) -> Vec<Vec<String>> {
+    vec.chunks(chunk_size).map(|chunk| chunk.to_vec()).collect()
+}
+
+//this formats and prints the commit header
+fn print_commit_header(app: &TuiApp, commit: &Commit) {
+    app.add_commit_message(
+        fancy_example::Msg::default()
+            .set_content(String::from(format!("commit {}", commit.id())))
+            .set_kind(fancy_example::MsgKind::GitCommitHeader),
+    );
+
+    if commit.parents().len() > 1 {
+        app.add_commit_message(
+            fancy_example::Msg::default()
+                .set_content(String::from(format!("{}", "Merge:")))
+                .set_kind(fancy_example::MsgKind::GitCommitHeader),
+        );
+        for id in commit.parent_ids() {
+            app.add_commit_message(
+                fancy_example::Msg::default()
+                    .set_content(String::from(format!("{:.8}", id)))
+                    .set_kind(fancy_example::MsgKind::GitCommitHeader),
+            );
+        }
+        app.add_commit_message(
+            fancy_example::Msg::default()
+                .set_content(String::from(format!("{}", "")))
+                .set_kind(fancy_example::MsgKind::GitCommitHeader),
+        );
+    }
+
+    let author = commit.author();
+    app.add_commit_message(
+        fancy_example::Msg::default()
+            .set_content(String::from(format!("Author: {}", author)))
+            .set_kind(fancy_example::MsgKind::GitCommitHeader),
+    );
+    print_time(&app, &author.when(), "Date:   ");
+    app.add_commit_message(
+        fancy_example::Msg::default()
+            .set_content(String::from(format!("{}", "")))
+            .set_kind(fancy_example::MsgKind::GitCommitHeader),
+    );
+}
+//this formats and prints the commit header
+fn print_commit_body(app: &TuiApp, commit: &Commit) {
+    for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
+        app.add_commit_message(
+            fancy_example::Msg::default()
+                .set_content(String::from(format!("    {}", line)))
+                .set_kind(fancy_example::MsgKind::GitCommitBody),
+        );
+    }
+}
+
+//called from above
+//part of formatting the output
+fn print_time(app: &TuiApp, time: &Time, prefix: &str) {
+    let (offset, sign) = match time.offset_minutes() {
+        n if n < 0 => (-n, '-'),
+        n => (n, '+'),
+    };
+    let (hours, minutes) = (offset / 60, offset % 60);
+    let ts = time::Timespec::new(time.seconds() + (time.offset_minutes() as i64) * 60, 0);
+    let time = time::at(ts);
+
+    println!(
+        "{}{} {}{:02}{:02}",
+        prefix,
+        time.strftime("%a %b %e %T %Y").unwrap(),
+        sign,
+        hours,
+        minutes
+    );
+    app.add_commit_message(
+        fancy_example::Msg::default()
+            .set_content(String::from(format!(
+                "{}{} {}{:02}{:02}",
+                prefix,
+                time.strftime("%a %b %e %T %Y").unwrap(),
+                sign,
+                hours,
+                minutes
+            )))
+            .set_kind(fancy_example::MsgKind::GitCommitTime),
+    );
+}
 
 #[cfg(not(target_arch = "wasm32"))]
-//fn main() -> eframe::Result<()> {
-fn main() -> () {
+fn main() -> eframe::Result<()> {
+//fn main() -> () {
     //TuiApp begin
-    //let mut terminal = init_terminal().expect("init_terminal() falied!");
     let mut tui_app = TuiApp::default();
 
     //repo
@@ -208,10 +357,10 @@ fn main() -> () {
 
     let cli_args = Args::parse();
     for _ in 0..cli_args.count {
-        debug!("Hello {}!", cli_args.name);
+        println!("Hello {}!", cli_args.name);
     }
 
-    debug!("cli_args.log_level {}!", cli_args.log_level.clone());
+    println!("cli_args.log_level {}!", cli_args.log_level.clone());
     if cli_args.log_level.len() > 0 {
         debug!("log_level {}!", cli_args.log_level.clone());
 
@@ -227,11 +376,18 @@ fn main() -> () {
         .init();
     }
 
-    debug!("cli_args.tui {}!", cli_args.tui.clone());
+    println!("cli_args.tui {}!", cli_args.tui.clone());
     if cli_args.tui {
         // Get the reference to HEAD
         let head = repo.head().expect("repo.head failed!");
-        debug!("HEAD: {}", head.name().unwrap_or("HEAD"));
+        println!("HEAD: {}", head.name().unwrap_or("HEAD"));
+
+	    let commit = head.peel_to_commit().expect("head.peel_to_commit");
+        // print_commit_header(&app, &commit);
+        // Print the commit ID (SHA-1 hash)
+        println!("Commit ID: {}", commit.id());
+        println!("Commit Summary: {:?}", commit.summary());
+
 
         let (peer_tx, mut peer_rx) = tokio::sync::mpsc::channel::<Msg>(100);
         let (input_tx, input_rx) = tokio::sync::mpsc::channel::<Msg>(100);
@@ -251,13 +407,15 @@ fn main() -> () {
 
             //let search_oid = Oid::from_str("your_commit_oid_here")?; // Replace with the commit OID you're looking for.
 
-            let mut revwalk = repo.revwalk()?;
-            revwalk.push_head()?; // Start from HEAD
-            revwalk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?; // Order commits
+            let mut revwalk = repo.revwalk().expect("revwalk");
+            revwalk.push_head().expect("revwalk.push_head"); // Start from HEAD
+            revwalk
+                .set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)
+                .expect("revwalk.set_sorting"); // Order commits
 
             //for oid in revwalk {
             let search_oid = Oid::from_str(&topic.clone()).unwrap();
-            let commit = repo.find_commit(search_oid)?;
+            let commit = repo.find_commit(search_oid).expect("repo.find_commit");
             if commit.id() == search_oid {
                 tui_app.add_message(
                     Msg::default()
@@ -309,7 +467,51 @@ fn main() -> () {
             print_commit_header(&tui_app, &commit);
             print_commit_body(&tui_app, &commit);
         }
-    } else {
+
+        //debug!("{}", topic);
+        let topic = gossipsub::IdentTopic::new(format!("{}", topic));
+        //debug!("{}", topic);
+        global_rt().spawn(async move {
+            evt_loop(input_rx, peer_tx, topic).await.unwrap();
+        });
+        //topic
+
+        // recv from peer
+        let mut tui_msg_adder = tui_app.add_msg_fn();
+        global_rt().spawn(async move {
+            while let Some(m) = peer_rx.recv().await {
+                debug!("recv: {:?}", m);
+                tui_msg_adder(m);
+            }
+        });
+        // say hi
+        let input_tx_clone = input_tx.clone();
+        global_rt().spawn(async move {
+            tokio::time::sleep(Duration::from_millis(1000)).await;
+            input_tx_clone
+                .send(Msg::default().set_kind(MsgKind::Join))
+                .await
+                .unwrap();
+        });
+
+		let mut terminal = init_terminal().expect("init_terminal() failed!");
+        //app.run
+        tui_app.run(&mut terminal).expect("tui_app.run");
+
+        // say goodbye
+        input_tx.blocking_send(Msg::default().set_kind(MsgKind::Leave)).expect("input_tx.blocking_send");
+        std::thread::sleep(Duration::from_millis(500));
+
+        // restore terminal
+        disable_raw_mode().expect("disable_raw_mode");
+        execute!(
+            terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        ).expect("execute!terminal backend");
+        terminal.show_cursor().expect("tereminal.show_cursor");
+        restore_terminal().expect("restore_terminal");
+        return Ok(());
     }
 
     //TuiApp end
@@ -337,15 +539,14 @@ fn main() -> () {
             });
         });
 
+    //}else{}
         eframe::run_native(
             "Dnd Example App",
-            NativeOptions::default(),
+            eframe::NativeOptions::default(),
             Box::new(move |ctx| Ok(Box::new(App::new(&ctx.egui_ctx)) as Box<dyn eframe::App>)),
-        );
-    } else {
-    }
+        )
+    }//else{}
 }
-
 // when compiling to web using trunk.
 #[cfg(target_arch = "wasm32")]
 fn main() {

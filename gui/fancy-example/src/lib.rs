@@ -130,10 +130,10 @@ impl App {
 
         SidePanel::left("sidebar")
             .resizable(false)
-            .exact_width(170.0)
+            .exact_width(width / std::f32::consts::PI)
             .show_animated(ctx, is_expanded, |ui| {
                 if SideBar::ui(ui, &mut self.shared_state) {
-                    self.sidebar_expanded = false;
+                    //self.sidebar_expanded = false;
                 }
             });
 
@@ -177,7 +177,7 @@ impl eframe::App for App {
 pub fn demo_area(ui: &mut Ui, title: &'static str, width: f32, content: impl FnOnce(&mut Ui)) {
     Center::new(title).ui(ui, |ui| {
         let width = f32::min(ui.available_width() - 20.0, width);
-        ui.set_max_width(width);
+        ui.set_max_width(width / 1.1);
         ui.set_max_height(ui.available_height() - 20.0);
 
         egui::Frame::NONE
@@ -466,7 +466,7 @@ enum MenuAction {
 
 /// App holds the state of the application
 pub struct TuiApp {
-    topic: String,
+    pub topic: String,
     header_content: String,
     /// Current value of the input box
     input: tui_input::Input,
@@ -796,7 +796,7 @@ pub fn restore_terminal() -> io::Result<()> {
 
 /// impl TuiApp::run
 impl TuiApp {
-    fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
+    pub fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
