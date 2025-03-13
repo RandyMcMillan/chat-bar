@@ -429,34 +429,37 @@ fn main() -> color_eyre::Result<()> {
         revwalk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?; // Order commits
 
         //for oid in revwalk {
-            let search_oid = Oid::from_str(&topic.clone()).unwrap();
-            let commit = repo.find_commit(search_oid)?;
-            if commit.id() == search_oid {
-                app.add_message(
-                    Msg::default()
-                        .set_content(String::from(format!("Found commit: {}", commit.id())))
-                        .set_kind(MsgKind::GitCommitHeader),
-                );
-                app.add_message(
-                    Msg::default()
-                        .set_content(String::from(format!("Found commit: {}", commit.author())))
-                        .set_kind(MsgKind::GitCommitHeader),
-                );
-                app.add_message(
-                    Msg::default()
-                        .set_content(String::from(format!("Found commit: {:?}", commit.summary().unwrap())))
-                        .set_kind(MsgKind::GitCommitHeader),
-                );
-            } else {
-                app.add_message(
-                    Msg::default()
-                        .set_content(String::from(format!(
-                            "----Commit: {} not found.",
-                            commit.id()
-                        )))
-                        .set_kind(MsgKind::GitCommitHeader),
-                );
-            }
+        let search_oid = Oid::from_str(&topic.clone()).unwrap();
+        let commit = repo.find_commit(search_oid)?;
+        if commit.id() == search_oid {
+            app.add_message(
+                Msg::default()
+                    .set_content(String::from(format!("Found commit: {}", commit.id())))
+                    .set_kind(MsgKind::GitCommitHeader),
+            );
+            app.add_message(
+                Msg::default()
+                    .set_content(String::from(format!("Found commit: {}", commit.author())))
+                    .set_kind(MsgKind::GitCommitHeader),
+            );
+            app.add_message(
+                Msg::default()
+                    .set_content(String::from(format!(
+                        "Found commit: {:?}",
+                        commit.summary().unwrap()
+                    )))
+                    .set_kind(MsgKind::GitCommitHeader),
+            );
+        } else {
+            app.add_message(
+                Msg::default()
+                    .set_content(String::from(format!(
+                        "----Commit: {} not found.",
+                        commit.id()
+                    )))
+                    .set_kind(MsgKind::GitCommitHeader),
+            );
+        }
         //}
 
         app.topic = topic.clone();
@@ -727,7 +730,6 @@ impl Default for App {
         }
     }
 }
-
 
 /// impl App
 impl App {
