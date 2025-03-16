@@ -417,40 +417,32 @@ fn main() -> color_eyre::Result<()> {
     //if not we create a COMMIT_CONTENT REQUEST
 
     //topic
-    //println!("cli_args.topic {}!", cli_args.topic);
-    let topic;
+    debug!("cli_args.topic {}!", cli_args.topic);
     if cli_args.topic.len() > 0 {
-        topic = String::from(format!("{}", cli_args.topic.clone()));
+        let repo_path = "."; // Current directory, assuming it's a git repo.
+        let repo = Repository::open(repo_path)?;
 
-        //let search_oid = Oid::from_str("your_commit_oid_here")?; // Replace with the commit OID you're looking for.
+        let valid_oid_str = "27def769dd555d4b488dea820b24c8d930ae6cb2"; // Example valid OID
+        let invalid_oid_str = "invalid_oid";
 
-        let mut revwalk = repo.revwalk()?;
-        revwalk.push_head()?; // Start from HEAD
-        revwalk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?; // Order commits
+        let oid_from_cli = String::from(format!("{}", cli_args.topic.clone()));
 
-        //for oid in revwalk {
-        let search_oid = Oid::from_str(&topic.clone()).unwrap();
-        let commit = repo.find_commit(search_oid)?;
-        if commit.id() == search_oid {
-            app.add_message(
-                Msg::default()
-                    .set_content(String::from(format!("Found commit: {}", commit.id())))
-                    .set_kind(MsgKind::GitCommitHeader),
+        let mut topic = String::from("");
+        if App::is_oid_valid(&repo, &oid_from_cli) {
+            debug!(
+                "'{}' is valid OID: {}",
+                oid_from_cli,
+                App::is_oid_valid(&repo, &oid_from_cli)
             );
-            app.add_message(
-                Msg::default()
-                    .set_content(String::from(format!("Found commit: {}", commit.author())))
-                    .set_kind(MsgKind::GitCommitHeader),
-            );
-            app.add_message(
-                Msg::default()
-                    .set_content(String::from(format!(
-                        "Found commit: {:?}",
-                        commit.summary().unwrap()
-                    )))
-                    .set_kind(MsgKind::GitCommitHeader),
-            );
+            topic.push_str(&oid_from_cli);
+
+            app.topic = topic.clone();
         } else {
+            debug!(
+                "'{}' is NOT valid OID: {}",
+                &oid_from_cli,
+                App::is_oid_valid(&repo, &oid_from_cli)
+            );
             app.add_message(
                 Msg::default()
                     .set_content(String::from(format!(
@@ -460,38 +452,13 @@ fn main() -> color_eyre::Result<()> {
                     .set_kind(MsgKind::GitCommitHeader),
             );
         }
-        //}
-
-        app.topic = topic.clone();
-    } else {
-        //topic = String::from(format!("{:0>64}", 0));
-        //for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-        //    let message = Msg::default()
-        //        //no! .set_content(format!("{:?}", line))
-        //        .set_content(format!("{:}", line))
-        //        .set_kind(MsgKind::Git);
-        //    app.add_message(message);
-        //}
-        topic = String::from(format!("{}", commit.id()));
-        app.topic = topic.clone();
-        //app.add_message(
-        //    Msg::default()
-        //        .set_content(topic.clone())
-        //        .set_kind(MsgKind::Chat),
-        //);
-        print_commit_header(&app, &commit);
-        print_commit_body(&app, &commit);
     }
 
-    //app.add_message(
-    //    Msg::default()
-    //        .set_content(topic.clone())
-    //        .set_kind(MsgKind::Command),
-    //);
+    print_commit_header(&mut app, &commit);
+    print_commit_body(&mut app, &commit);
 
-    //debug!("{}", topic);
-    let topic = gossipsub::IdentTopic::new(format!("{}", topic));
-    //debug!("{}", topic);
+    let topic = gossipsub::IdentTopic::new(format!("{}", app.topic.clone()));
+    debug!("{}", topic);
     global_rt().spawn(async move {
         evt_loop(input_rx, peer_tx, topic).await.unwrap();
     });
@@ -541,7 +508,9 @@ fn global_rt() -> &'static tokio::runtime::Runtime {
 }
 
 //this formats and prints the commit header
-fn print_commit_header(app: &App, commit: &Commit) {
+fn print_commit_header(app: &mut App, commit: &Commit) {
+    app.header_content = String::from(format!("HEADER_CONTENT: {}", commit.id()));
+    //app.header_content.push_str("\nworld");
     app.add_commit_message(
         Msg::default()
             .set_content(String::from(format!("commit {}", commit.id())))
@@ -660,8 +629,8 @@ fn restore_terminal() -> io::Result<()> {
 
 /// App holds the state of the application
 pub struct App {
-    topic: String,
-    header_content: String,
+    topic: String,          // either cli --topic
+    header_content: String, // or header content
     /// Current value of the input box
     input: Input,
     /// Current input mode
@@ -758,6 +727,26 @@ impl App {
         })
     }
 
+    //ADD COMMIT HEADER
+    //add_commit_header
+    pub fn add_commit_header(&self, msg: Msg) {
+        let mut commit_header = self.messages.lock().unwrap();
+        Self::add_header(&mut commit_header, msg);
+    }
+
+    //add_commit_msg
+    fn add_header(commit_msgs: &mut Vec<Msg>, commit_msg: Msg) {
+        commit_msgs.push(commit_msg.clone().wrap_text(commit_msg.clone(), 80));
+    }
+
+    //add_commit_msg_fn
+    pub fn add_commit_header_fn(&self) -> Box<dyn FnMut(Msg) + 'static + Send> {
+        let m = self.messages.clone();
+        Box::new(move |commit_header| {
+            let mut msgs = m.lock().unwrap();
+            Self::add_msg(&mut msgs, commit_header);
+        })
+    }
     //ADD COMMIT MESSAGE
     //add_commit_message
     pub fn add_commit_message(&self, msg: Msg) {
@@ -777,6 +766,20 @@ impl App {
             let mut msgs = m.lock().unwrap();
             Self::add_msg(&mut msgs, commit_msg);
         })
+    }
+
+    pub fn is_oid_valid(repo: &Repository, oid_str: &str) -> bool {
+        match Oid::from_str(oid_str) {
+            Ok(oid) => {
+                // Optionally, you can check if the OID exists in the repository
+                // by attempting to find the corresponding object.
+                match repo.find_object(oid, None) {
+                    Ok(_) => true,   // OID exists in the repo
+                    Err(_) => false, //OID does not exist in the repo.
+                }
+            }
+            Err(_) => false,
+        }
     }
 }
 
@@ -1023,8 +1026,13 @@ impl Widget for &mut App {
         // keep 2 for borders and 1 for cursor
         let scroll = self.input.visual_scroll(width as usize);
 
+        //
+
+        //empty commit 4b825dc642cb6eb9a060e54bf8d69288fbee4904
         let mut header_content = Paragraph::new(
-            String::from("testing>>>") + &self.topic.to_string() + &String::from("<<<testing"),
+            String::from("testing>>>")
+                + &self.header_content.to_string()
+                + &String::from("<<<testing"),
         )
         .style(match self.input_mode {
             InputMode::Normal => Style::default(),
