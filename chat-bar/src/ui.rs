@@ -4,19 +4,16 @@ use libp2p::{gossipsub, mdns, noise, swarm::NetworkBehaviour, swarm::SwarmEvent,
 
 use ratatui::prelude::*;
 use ratatui::{
+    backend::{Backend, CrosstermBackend},
     crossterm::{
         event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
         execute,
-        terminal::{
-            disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
-            LeaveAlternateScreen,
-        },
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-    backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::Color,
     text::Line,
+    widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
 
@@ -49,7 +46,7 @@ pub struct App {
     messages: Arc<Mutex<Vec<msg::Msg>>>,
     _on_input_enter: Option<Box<dyn FnMut(msg::Msg)>>,
     msgs_scroll: usize,
-	pub topic: String,
+    pub topic: String,
 }
 
 impl Default for App {
@@ -144,7 +141,14 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                         let l = app.messages.lock().unwrap().len();
                         app.msgs_scroll = app.msgs_scroll.saturating_add(1).min(l);
                     }
-                    _ => {}
+                    KeyCode::Esc => {
+                        app.msgs_scroll = usize::MAX;
+                        app.msgs_scroll = usize::MAX;
+                        app.input.reset();
+                    }
+                    _ => {
+                        app.msgs_scroll = usize::MAX;
+                    }
                 },
                 InputMode::Editing => match key.code {
                     KeyCode::Enter => {

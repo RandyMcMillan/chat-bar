@@ -2,7 +2,6 @@ use clap::{Arg, ArgAction, ArgMatches, Command, Parser, Subcommand};
 
 use libp2p::{gossipsub, mdns, noise, swarm::NetworkBehaviour, swarm::SwarmEvent, tcp, yamux};
 
-
 use once_cell::sync::OnceCell;
 use std::{error::Error, time::Duration};
 use tokio::{io, io::AsyncBufReadExt};
@@ -70,9 +69,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let mut topic = String::from("");
-	app.topic = topic.clone();
+    app.topic = topic.clone();
 
-	let topic = gossipsub::IdentTopic::new(format!("{}", app.topic.clone()));
+    let topic = gossipsub::IdentTopic::new(format!("{}", app.topic.clone()));
 
     global_rt().spawn(async move {
         evt_loop(input_rx, peer_tx, topic).await.unwrap();

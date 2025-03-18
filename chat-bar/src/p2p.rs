@@ -7,8 +7,8 @@ use tracing::{debug, warn};
 
 use ureq::Agent;
 
-use tokio::task;
 use crate::msg::{Msg, MsgKind};
+use tokio::task;
 
 const TOPIC: &str = "chat-bar";
 /// MyBehaviour
