@@ -49,13 +49,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     let mut app = ui::App::default();
-    for line in TITLE.lines() {
-        app.add_message(
-            Msg::default()
-                .set_content(line.to_string())
-                .set_kind(MsgKind::Raw),
-        );
-    }
+
+    //TODO
+    //for line in TITLE.lines() {
+    //    app.add_message(
+    //        Msg::default()
+    //            .set_content(line.to_string())
+    //            .set_kind(MsgKind::Raw),
+    //    );
+    //}
 
     let (peer_tx, mut peer_rx) = tokio::sync::mpsc::channel::<Msg>(100);
     let (input_tx, input_rx) = tokio::sync::mpsc::channel::<Msg>(100);
