@@ -483,7 +483,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let commit_id = commit.id().to_string();
     //some info wrangling
     info!("commit_id:\n{}", commit_id);
-    let padded_commit_id = format!("{:0>64}", commit_id);
+    let padded_commit_id = format!("{:0>64}", commit_id.clone());
     global_rt().spawn(async move {
         //// commit based keys
         //let keys = generate_nostr_keys_from_commit_hash(&commit_id)?;
@@ -533,7 +533,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         input_tx_clone.blocking_send(m).unwrap();
     });
 
-    let mut topic = String::from("");
+    let mut topic = String::from(commit_id.to_string());
     app.topic = topic.clone();
 
     let topic = gossipsub::IdentTopic::new(format!("{}", app.topic.clone()));
