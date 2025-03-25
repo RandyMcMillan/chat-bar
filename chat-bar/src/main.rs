@@ -1,6 +1,5 @@
-use clap::{Arg, ArgAction, ArgMatches, Command, Parser, Subcommand};
-
-use libp2p::{gossipsub, mdns, noise, swarm::NetworkBehaviour, swarm::SwarmEvent, tcp, yamux};
+use clap::Parser;
+use libp2p::gossipsub;
 
 use once_cell::sync::OnceCell;
 use std::{error::Error, time::Duration};
@@ -9,10 +8,8 @@ use tokio::{io, io::AsyncBufReadExt};
 use tracing_subscriber::EnvFilter;
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::fmt::Write;
-use std::io::ErrorKind;
-use std::process;
 
 use anyhow::{anyhow, Result};
 use git2::{Commit, ObjectType, Oid, Repository};
@@ -20,9 +17,8 @@ use nostr_sdk::prelude::*;
 use nostr_sdk::EventBuilder;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use serde_json::error::Category;
-use serde_json::{Error as SerdeJsonError, Result as SerdeJsonResult, Value};
-use sha2::{Digest, Sha256};
+use serde_json::{Result as SerdeJsonResult, Value};
+use sha2::Digest;
 //use tokio::time::Duration;
 use tracing::{debug, info};
 
@@ -312,6 +308,7 @@ pub struct Args {
     topic: String,
 }
 
+//async tasks
 fn global_rt() -> &'static tokio::runtime::Runtime {
     static RT: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
     RT.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
@@ -337,6 +334,129 @@ fn main() -> Result<(), Box<dyn Error>> {
         //send to create_event function with &"custom content"
         let signed_event = create_event(keys, custom_tags, &"custom content").await;
         info!("signed_event:\n{:?}", signed_event);
+    });
+
+    //initialize git repo
+    let repo = Repository::discover(".")?;
+
+    //gather some repo info
+    //find HEAD
+    let head = repo.head()?;
+    let obj = head.resolve()?.peel(ObjectType::Commit)?;
+
+    //read top commit
+    let commit = obj.peel_to_commit()?;
+    let commit_id = commit.id().to_string();
+    //some info wrangling
+    info!("commit_id:\n{}", commit_id);
+    let padded_commit_id = format!("{:0>64}", commit_id);
+
+    // commit based keys
+    let keys = generate_nostr_keys_from_commit_hash(&commit_id)?;
+    info!("keys.secret_key():\n{:?}", keys.secret_key());
+    info!("keys.public_key():\n{}", keys.public_key());
+
+    //TODO config metadata
+
+    //access some git info
+    let serialized_commit = serialize_commit(&commit)?;
+    debug!("Serialized commit:\n{}", serialized_commit);
+
+    let binding = serialized_commit.clone();
+    let deserialized_commit = deserialize_commit(&repo, &binding)?;
+    info!("Deserialized commit:\n{:?}", deserialized_commit);
+
+    //access commit summary in the deserialized commit
+    info!("Original commit ID:\n{}", commit_id);
+    info!("Deserialized commit ID:\n{}", deserialized_commit.id());
+
+    //additional checking
+    if commit.id() != deserialized_commit.id() {
+        debug!("Commit IDs do not match!");
+    } else {
+        debug!("Commit IDs match!");
+    }
+
+    let value: Value = parse_json(&serialized_commit)?;
+    //info!("value:\n{}", value);
+
+    // Accessing object elements.
+    if let Some(id) = value.get("id") {
+        info!("id:\n{}", id.as_str().unwrap_or(""));
+    }
+    if let Some(tree) = value.get("tree") {
+        info!("tree:\n{}", tree.as_str().unwrap_or(""));
+    }
+    // Accessing parent commits (merge may be array)
+    if let Some(parent) = value.get("parents") {
+        if let Value::Array(arr) = parent {
+            if let Some(parent) = arr.get(0) {
+                info!("parent:\n{}", parent.as_str().unwrap_or("initial commit"));
+            }
+            if let Some(parent) = arr.get(1) {
+                info!("parent:\n{}", parent.as_str().unwrap_or(""));
+            }
+        }
+    }
+    if let Some(author_name) = value.get("author_name") {
+        info!("author_name:\n{}", author_name.as_str().unwrap_or(""));
+    }
+    if let Some(author_email) = value.get("author_email") {
+        info!("author_email:\n{}", author_email.as_str().unwrap_or(""));
+    }
+    if let Some(committer_name) = value.get("committer_name") {
+        info!("committer_name:\n{}", committer_name.as_str().unwrap_or(""));
+    }
+    if let Some(committer_email) = value.get("committer_email") {
+        info!(
+            "committer_email:\n{}",
+            committer_email.as_str().unwrap_or("")
+        );
+    }
+
+    //split the commit message into a Vec<String>
+    if let Some(message) = value.get("message") {
+        let parts = split_json_string(&message, "\n");
+        for part in parts {
+            info!("\n{}", part);
+        }
+        debug!("message:\n{}", message.as_str().unwrap_or(""));
+    }
+    if let Value::Number(time) = &value["time"] {
+        info!("time:\n{}", time);
+    }
+
+    // // Accessing array elements.
+    // if let Some(items) = value.get("items") {
+    //     if let Value::Array(arr) = items {
+    //         if let Some(first_item) = arr.get(0) {
+    //             info!("First item: {}", first_item);
+    //         }
+    //         if let Some(second_item) = arr.get(1){
+    //             info!("second item: {}", second_item.as_str().unwrap_or(""));
+    //         }
+    //     }
+    // }
+
+    global_rt().spawn(async move {
+        //create nostr client with commit based keys
+        //let client = Client::new(keys);
+        let client = Client::new(keys.clone());
+        client.add_relay("wss://relay.damus.io").await.expect("");
+        client.add_relay("wss://e.nos.lol").await.expect("");
+        client.connect().await;
+
+        //build git gnostr event
+        let builder = EventBuilder::text_note(serialized_commit);
+
+        //send git gnostr event
+        let output = client.send_event_builder(builder).await.expect("");
+
+        //some reporting
+        info!("Event ID: {}", output.id());
+        info!("Event ID BECH32: {}", output.id().to_bech32().expect(""));
+        info!("Sent to: {:?}", output.success);
+        info!("Not sent to: {:?}", output.failed);
     });
 
     let mut app = ui::App::default();
