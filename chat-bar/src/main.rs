@@ -323,6 +323,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_writer(std::io::stderr)
         .init();
 
+    //parse keys from sha256 hash
+    let keys =
+        Keys::parse("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap();
+
+    //create a HashMap of custom_tags
+    //used to insert commit tags
+    let mut custom_tags = HashMap::new();
+    custom_tags.insert("gnostr".to_string(), vec!["git".to_string()]);
+    custom_tags.insert("GIT".to_string(), vec!["GNOSTR".to_string()]);
+
+    global_rt().spawn(async move {
+        //send to create_event function with &"custom content"
+        let signed_event = create_event(keys, custom_tags, &"custom content").await;
+        info!("signed_event:\n{:?}", signed_event);
+    });
+
     let mut app = ui::App::default();
 
     //TODO
