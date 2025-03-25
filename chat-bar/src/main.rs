@@ -1,11 +1,12 @@
 use clap::Parser;
 use libp2p::gossipsub;
-
 use once_cell::sync::OnceCell;
 use std::{error::Error, time::Duration};
 use tokio::{io, io::AsyncBufReadExt};
+use tracing_subscriber::util::SubscriberInitExt;
 //use tracing::debug;
-use tracing_subscriber::EnvFilter;
+use tracing::{debug, info, Level};
+use tracing_subscriber::{fmt, layer::SubscriberExt, EnvFilter, Registry};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -20,7 +21,6 @@ use serde_json;
 use serde_json::{Result as SerdeJsonResult, Value};
 use sha2::Digest;
 //use tokio::time::Duration;
-use tracing::{debug, info};
 
 mod p2p;
 mod ui;
@@ -92,7 +92,7 @@ async fn create_event(
     // TODO get_relay_list here
     client.add_relay("wss://relay.damus.io").await?;
     client.add_relay("wss://e.nos.lol").await?;
-    //client.add_relay("wss://nos.lol").await?;
+    client.add_relay("wss://nos.lol").await?;
 
     // Connect to the relays.
     client.connect().await;
@@ -315,13 +315,21 @@ fn global_rt() -> &'static tokio::runtime::Runtime {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_writer(std::io::stderr)
-        .init();
+    let filter = EnvFilter::default()
+        .add_directive(Level::WARN.into())
+        //.add_directive("nostr_sdk::client::handler=off".parse().unwrap())
+        //.add_directive("nostr_relay_pool=off".parse().unwrap())
+        //.add_directive("libp2p_mdns=off".parse().unwrap())
+        .add_directive("other_module=off".parse().unwrap()); // Turn off logging for other_module
+
+    let subscriber = Registry::default()
+        .with(fmt::layer().with_writer(std::io::stdout))
+        .with(filter);
+
+    //subscriber.try_init();
 
     //parse keys from sha256 hash
-    let keys =
+    let empty_hash_keys =
         Keys::parse("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap();
 
     //create a HashMap of custom_tags
@@ -332,7 +340,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     global_rt().spawn(async move {
         //send to create_event function with &"custom content"
-        let signed_event = create_event(keys, custom_tags, &"custom content").await;
+        let signed_event = create_event(empty_hash_keys, custom_tags, &"gnostr-chat:event").await;
         info!("signed_event:\n{:?}", signed_event);
     });
 
@@ -351,10 +359,30 @@ fn main() -> Result<(), Box<dyn Error>> {
     info!("commit_id:\n{}", commit_id);
     let padded_commit_id = format!("{:0>64}", commit_id);
 
-    // commit based keys
-    let keys = generate_nostr_keys_from_commit_hash(&commit_id)?;
-    info!("keys.secret_key():\n{:?}", keys.secret_key());
-    info!("keys.public_key():\n{}", keys.public_key());
+    //// commit based keys
+    //let keys = generate_nostr_keys_from_commit_hash(&commit_id)?;
+    //info!("keys.secret_key():\n{:?}", keys.secret_key());
+    //info!("keys.public_key():\n{}", keys.public_key());
+
+    //parse keys from sha256 hash
+    let padded_keys = Keys::parse(padded_commit_id).unwrap();
+
+    //create a HashMap of custom_tags
+    //used to insert commit tags
+    let mut custom_tags = HashMap::new();
+    custom_tags.insert("gnostr".to_string(), vec!["git".to_string()]);
+    custom_tags.insert("GIT".to_string(), vec!["GNOSTR".to_string()]);
+    custom_tags.insert(
+        padded_keys.clone().public_key().to_string(),
+        vec!["GNOSTR".to_string()],
+    );
+
+    global_rt().spawn(async move {
+        //send to create_event function with &"custom content"
+        let signed_event =
+            create_event(padded_keys.clone(), custom_tags, &"gnostr-chat:event").await;
+        info!("signed_event:\n{:?}", signed_event);
+    });
 
     //TODO config metadata
 
@@ -438,10 +466,35 @@ fn main() -> Result<(), Box<dyn Error>> {
     //     }
     // }
 
+    //initialize git repo
+    let repo = Repository::discover(".").expect("");
+
+    //gather some repo info
+    //find HEAD
+    let head = repo.head().expect("");
+    let obj = head
+        .resolve()
+        .expect("")
+        .peel(ObjectType::Commit)
+        .expect("");
+
+    //read top commit
+    let commit = obj.peel_to_commit().expect("");
+    let commit_id = commit.id().to_string();
+    //some info wrangling
+    info!("commit_id:\n{}", commit_id);
+    let padded_commit_id = format!("{:0>64}", commit_id);
     global_rt().spawn(async move {
+        //// commit based keys
+        //let keys = generate_nostr_keys_from_commit_hash(&commit_id)?;
+        //info!("keys.secret_key():\n{:?}", keys.secret_key());
+        //info!("keys.public_key():\n{}", keys.public_key());
+
+        //parse keys from sha256 hash
+        let padded_keys = Keys::parse(padded_commit_id).unwrap();
         //create nostr client with commit based keys
         //let client = Client::new(keys);
-        let client = Client::new(keys.clone());
+        let client = Client::new(padded_keys.clone());
         client.add_relay("wss://relay.damus.io").await.expect("");
         client.add_relay("wss://e.nos.lol").await.expect("");
         client.connect().await;
