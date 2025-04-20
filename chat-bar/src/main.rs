@@ -304,7 +304,7 @@ pub struct Args {
     config: String,
     #[arg(long = "log_level", default_value = "")]
     log_level: String,
-    #[arg(long = "topic", default_value = "")]
+    #[arg(long = "topic", default_value = "gnostr")]
     topic: String,
 }
 
